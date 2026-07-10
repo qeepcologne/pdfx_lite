@@ -1,0 +1,34 @@
+name: pdfx_lite
+description: Minimal, legacy-free PDF rendering & viewing for Flutter (Android + iOS) — no CocoaPods, SPM-only, no web/desktop renderers. Replacement for pdfx.
+repository: https://github.com/qeepcologne/pdfx_lite
+version: 2.9.3
+
+environment:
+  sdk: ^3.12.0
+  flutter: '>=3.44.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+  uuid: ^4.5.1
+  meta: ^1.15.0
+  extension: ^0.6.0
+  synchronized: ^3.3.0+3
+  photo_view: ^0.15.0
+  vector_math: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  pigeon: ^4.2.14
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: io.scer.pdfx
+        pluginClass: PdfxPlugin
+      ios:
+        pluginClass: SwiftPdfxPlugin
