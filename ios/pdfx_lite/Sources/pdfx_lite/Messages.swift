@@ -2,11 +2,7 @@
 // Preserves the exact same NSObject-based API so SwiftPdfxPlugin needs no changes.
 
 import Foundation
-#if os(iOS)
 import Flutter
-#elseif os(macOS)
-import FlutterMacOS
-#endif
 
 // MARK: - Helper functions
 

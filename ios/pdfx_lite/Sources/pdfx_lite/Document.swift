@@ -1,8 +1,4 @@
-#if os(iOS)
 import UIKit
-#elseif os(macOS)
-import Cocoa
-#endif
 
 class Document {
     let id: String
@@ -106,43 +102,23 @@ class Page {
                     }
                 }
                 context!.concatenate(transform)
-                #if os(iOS)
                 context!.setFillColor(UIColor(hexString: backgroundColor).cgColor)
-                #elseif os(macOS)
-                context!.setFillColor(NSColor(hexString: backgroundColor).cgColor)
-                #endif
                 context!.fill(box)
                 context!.drawPDFPage(renderer)
-                #if os(iOS)
                 var image = UIImage(cgImage: context!.makeImage()!)
-                #elseif os(macOS)
-                var image = NSBitmapImageRep(cgImage: context!.makeImage()!)
-                #endif
 
                 if (crop != nil) {
                     // Perform cropping in Core Graphics
                     let cutImageRef: CGImage = (image.cgImage?.cropping(to:crop!))!
-                    #if os(iOS)
                     image = UIImage(cgImage: cutImageRef)
-                    #elseif os(macOS)
-                    image = NSBitmapImageRep(cgImage: cutImageRef)
-                    #endif
                 }
 
                 switch(compressFormat) {
                     case CompressFormat.JPEG:
-                        #if os(iOS)
                         data = image.jpegData(compressionQuality: compressionQuality) as Data?
-                        #elseif os(macOS)
-                        data = image.representation(using: NSBitmapImageRep.FileType.jpeg, properties: [:]) as Data?
-                        #endif
                         break;
                     case CompressFormat.PNG:
-                        #if os(iOS)
                         data = image.pngData() as Data?
-                        #elseif os(macOS)
-                        data = image.representation(using: NSBitmapImageRep.FileType.png, properties: [:]) as Data?
-                        #endif
                         break;
                 }
 

@@ -12,7 +12,12 @@
 * Android: minSdk 16 → 24, compileSdk 35 → 37, Gradle 8.10.2 → 9.6.1, kotlinx-coroutines 1.8.1 → 1.10.2.
   Dropped the `agpVersion < 9` compat guard (AGP 9's built-in Kotlin), the `sourceSets`/`compileOptions` blocks, and
   `gradle.properties` (`enableJetifier` is gone in AGP 9, `useAndroidX` is the default).
-* iOS: deployment target 13.0 → 15.0.
+* iOS: deployment target 13.0 → 15.0. Stripped every `#if os(iOS)` / `#elseif os(macOS)` block from the Swift sources
+  (incl. the whole `NSColor` extension) — the SPM package is iOS-only, so the macOS branches were unreachable.
+* **Breaking:** removed the exported `RgbaData` type. Nothing produced or consumed it once the web texture renderer
+  was gone.
+* `getPixels`/`getPlatformPixels` now take a required `String path`; the optional in-memory `bytes` fallback had no
+  caller left. A null path from the native renderer throws `StateError` instead of being silently tolerated.
 * **Removed the test suite.** All 8 tests drove `PdfxPlatformMethodChannel`, which no longer exists. A pigeon-based
   suite has not been written — the fork currently ships with no tests.
 * Requires Dart ^3.12 / Flutter >=3.44.

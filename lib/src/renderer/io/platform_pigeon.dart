@@ -252,8 +252,12 @@ class PdfPageImagePigeon extends PdfPageImage {
 
     final retWidth = result.width, retHeight = result.height;
     //android + ios both render to a temp file; the in-memory `result.data` path served windows/web
+    final path = result.path;
+    if (path == null) {
+      throw StateError('pdfx_lite: native renderer returned no file path');
+    }
     final Uint8List pixels = await getPixels(
-      path: result.path,
+      path: path,
       removeTempFile: removeTempFile,
     );
 

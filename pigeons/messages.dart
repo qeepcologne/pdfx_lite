@@ -70,7 +70,7 @@ class UpdateTextureMessage {
   // For android
   String? documentId;
   int? pageNumber;
-  // For ios & macos
+  // For ios
   String? pageId;
   int? textureId;
   int? width;
@@ -104,7 +104,6 @@ class UnregisterTextureMessage {
 // #if TARGET_OS_IOS
 // #import <Flutter/Flutter.h>
 // #else
-// #import <FlutterMacOS/FlutterMacOS.h>
 // #endif
 /// ````
 ///

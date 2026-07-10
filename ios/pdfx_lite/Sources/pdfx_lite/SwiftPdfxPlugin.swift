@@ -1,10 +1,5 @@
-#if os(iOS)
 import Flutter
 import UIKit
-#elseif os(macOS)
-import Cocoa
-import FlutterMacOS
-#endif
 import CoreGraphics
 
 public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
@@ -21,11 +16,7 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
-        #if os(iOS)
             let messenger: FlutterBinaryMessenger = registrar.messenger()
-        #elseif os(macOS)
-            let messenger: FlutterBinaryMessenger = registrar.messenger
-        #endif
         let api: PdfxApi & NSObjectProtocol = SwiftPdfxPlugin.init(registrar: registrar)
         PdfxApiSetup(messenger, api);
     }
@@ -172,11 +163,7 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
     public func registerTextureWithError(_ error: AutoreleasingUnsafeMutablePointer<FlutterError?>) -> RegisterTextureReply? {
         let result = RegisterTextureReply.init()
         let pageTex = PdfPageTexture(registrar: registrar)
-        #if os(iOS)
             let texId = registrar.textures().register(pageTex)
-        #elseif os(macOS)
-            let texId = registrar.textures.register(pageTex)
-        #endif
         textures[texId] = pageTex
         pageTex.texId = texId
         result.id = NSNumber.init(value: texId)
@@ -185,11 +172,7 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
 
     public func unregisterTextureMessage(_ message: UnregisterTextureMessage, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
         let texId = message.id?.int64Value
-        #if os(iOS)
             registrar.textures().unregisterTexture(texId!)
-        #elseif os(macOS)
-            registrar.textures.unregisterTexture(texId!)
-        #endif
             textures[texId!] = nil
     }
 
@@ -277,13 +260,9 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
     }
 
     func openAssetDocument(name: String) -> CGPDFDocument? {
-        #if os(iOS)
         guard let path = Bundle.main.path(forResource: "Frameworks/App.framework/flutter_assets/" + name, ofType: "") else {
             return nil
         }
-        #elseif os(macOS)
-        let path = Bundle.main.bundlePath + "/Contents/Frameworks/App.framework/Resources/flutter_assets/" + name;
-        #endif
 
         return openFileDocument(pdfFilePath: path)
     }
@@ -365,11 +344,7 @@ class PdfPageTexture : NSObject {
 
 
     if backgroundColor != nil {
-        #if os(iOS)
             context?.setFillColor(UIColor(hexString: backgroundColor!).cgColor)
-        #elseif os(macOS)
-            context?.setFillColor(NSColor(hexString: backgroundColor!).cgColor)
-        #endif
         context?.fill(CGRect(x: 0, y: 0, width: width, height: height))
     }
 
@@ -384,11 +359,7 @@ class PdfPageTexture : NSObject {
     lock.lock()
     self.pixBuf = pixBuf
     lock.unlock()
-    #if os(iOS)
       registrar?.textures().textureFrameAvailable(texId)
-    #elseif os(macOS)
-      registrar?.textures.textureFrameAvailable(texId)
-    #endif
   }
 }
 
