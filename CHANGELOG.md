@@ -5,6 +5,12 @@
 * Removed the method-channel platform implementation; pigeon covers both remaining platforms.
 * Dropped `flutter_web_plugins`, `web` and `universal_platform` dependencies.
 * Migrated deprecated `vector_math` `translate`/`scale` to `translateByDouble`/`scaleByDouble`.
+* Dropped unused `uuid` and `extension` dependencies (they served the web renderer only).
+* Dropped the `pigeon` dev dependency — v4 pins `analyzer` 4.x; the generated files are checked in and the message API
+  is frozen. Add it back temporarily to regenerate from `pigeons/messages.dart`.
+* Bumped `flutter_lints` to 6; `synchronized` to ^3.4.1.
+* **Removed the test suite.** All 8 tests drove `PdfxPlatformMethodChannel`, which no longer exists. A pigeon-based
+  suite has not been written — the fork currently ships with no tests.
 * Requires Dart ^3.12 / Flutter >=3.44.
 
 ## 2.9.3

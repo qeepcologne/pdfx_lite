@@ -10,19 +10,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  plugin_platform_interface: ^2.1.8
-  uuid: ^4.5.1
   meta: ^1.15.0
-  extension: ^0.6.0
-  synchronized: ^3.3.0+3
   photo_view: ^0.15.0
+  plugin_platform_interface: ^2.1.8
+  synchronized: ^3.4.1
+  #`vector_math_64` (Quad/Vector3/Matrix4) for the pinch viewer's transform maths. Flutter pins this to 2.2.0.
   vector_math: ^2.1.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
-  pigeon: ^4.2.14
+  flutter_lints: ^6.0.0
+  #`pigeon` is NOT a dev dependency: v4 pins analyzer 4.x, and the generated files (lib/src/renderer/io/pigeon.dart,
+  #android/.../Pigeon.java, ios/.../Messages.swift) are checked in and the message API is frozen. To regenerate, add
+  #`pigeon` temporarily and run it against `pigeons/messages.dart`.
 
 flutter:
   plugin:

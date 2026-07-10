@@ -208,7 +208,7 @@ class _PdfViewState extends State<PdfView> {
           _controller._document!,
         ),
         itemCount: _controller._document?.pagesCount ?? 0,
-        loadingBuilder: (_, __) =>
+        loadingBuilder: (_, _) =>
             widget.builders.pageLoaderBuilder?.call(context) ??
             const SizedBox(),
         backgroundDecoration: widget.backgroundDecoration,

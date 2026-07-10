@@ -33,7 +33,7 @@ class _PdfScreenState extends State<PdfScreen> {
         appBar: AppBar(
           title: PdfPageNumber(
             controller: _controller,
-            builder: (_, __, page, pagesCount) =>
+            builder: (_, _, page, pagesCount) =>
                 Text('Page $page of ${pagesCount ?? 0}'),
           ),
         ),
