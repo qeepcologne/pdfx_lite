@@ -9,6 +9,10 @@
 * Dropped the `pigeon` dev dependency — v4 pins `analyzer` 4.x; the generated files are checked in and the message API
   is frozen. Add it back temporarily to regenerate from `pigeons/messages.dart`.
 * Bumped `flutter_lints` to 6; `synchronized` to ^3.4.1.
+* Android: minSdk 16 → 24, compileSdk 35 → 37, Gradle 8.10.2 → 9.6.1, kotlinx-coroutines 1.8.1 → 1.10.2.
+  Dropped the `agpVersion < 9` compat guard (AGP 9's built-in Kotlin), the `sourceSets`/`compileOptions` blocks, and
+  `gradle.properties` (`enableJetifier` is gone in AGP 9, `useAndroidX` is the default).
+* iOS: deployment target 13.0 → 15.0.
 * **Removed the test suite.** All 8 tests drove `PdfxPlatformMethodChannel`, which no longer exists. A pigeon-based
   suite has not been written — the fork currently ships with no tests.
 * Requires Dart ^3.12 / Flutter >=3.44.

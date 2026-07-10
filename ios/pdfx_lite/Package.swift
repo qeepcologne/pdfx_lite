@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "pdfx_lite",
     platforms: [
-        .iOS(.v13),
+        .iOS(.v15),
     ],
     products: [
         .library(name: "pdfx-lite", targets: ["pdfx_lite"]),

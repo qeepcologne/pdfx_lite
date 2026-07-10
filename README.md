@@ -18,8 +18,16 @@ Includes 2 APIs, unchanged from upstream:
 | Desktop | macOS (podspec), Windows (CMake) | **removed** |
 | Platform channel | pigeon (mobile) + method channel (web/Windows) | **pigeon only** |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
-| Dependencies | + `flutter_web_plugins`, `web`, `universal_platform` | those three dropped |
+| **Android** | | |
+| minSdk / compileSdk | 16 / 35 | **24 / 37** |
+| Gradle | 8.10.2 | **9.6.1** |
+| AGP | 8 or 9 (compat guard) | **9 only** (built-in Kotlin) |
+| **iOS** | | |
+| Deployment target | 13.0 | **15.0** |
+| **Dart** | | |
+| Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension` | those five dropped |
 | `vector_math` | deprecated `translate` / `scale` | `translateByDouble` / `scaleByDouble` |
+| Tests | 8 (method-channel) | **none** — the implementation they covered is gone |
 
 Everything else — the public API, the pinch/simple viewers, the Android and iOS native renderers — is upstream's.
 
