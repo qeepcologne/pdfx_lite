@@ -77,11 +77,6 @@ PdfViewPinch(controller: controller);
    are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
    failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
 
-   ```diff
-   - PdfDocument.openAsset('assets/doc.pdf', password: 'secret')
-   + PdfDocument.openAsset('assets/doc.pdf')
-   ```
-
 ## Upstream
 
 Forked from [ScerIO/packages.flutter](https://github.com/ScerIO/packages.flutter) at `pdfx` 2.9.3. Bug fixes to the
