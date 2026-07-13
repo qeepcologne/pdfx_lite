@@ -26,6 +26,7 @@ Includes 2 APIs, unchanged from upstream:
 | **iOS** | | |
 | Integration | CocoaPods podspec + SPM | **SPM only** |
 | Deployment target | 13.0 | 15.0 |
+| Swift | 5.x, `swift-tools-version: 5.9` | **6.2 tools, Swift 6 language mode** (strict concurrency) — needs Xcode 26+ |
 | **Dart** | | |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |

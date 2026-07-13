@@ -1,6 +1,8 @@
 ## 2.9.3 (pdfx_lite fork)
 
-* **iOS: Swift 6 language mode.** `Package.swift` moves to `swift-tools-version: 6.0` with `.swiftLanguageMode(.v6)`.
+* **iOS: Swift 6 language mode.** `Package.swift` moves to `swift-tools-version: 6.2` (**requires Xcode 26+**) with
+  `.swiftLanguageMode(.v6)`. The tools version is a toolchain floor, not a feature gate — the language mode is equally
+  strict from 6.0 — and is set deliberately to keep the package current.
   Strict concurrency exposed a real data race: `DocumentRepository` / `PageRepository` were plain dictionaries written
   on the platform thread and read from the render queue, unsynchronised. `Repository` now holds an `NSLock`. The plugin,
   `Document`, `Page` and `PdfPageTexture` are `@unchecked Sendable` (each documents which lock or thread discipline

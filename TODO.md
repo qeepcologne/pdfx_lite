@@ -8,7 +8,7 @@ Open issues for `pdfx_lite`, forked from `pdfx` 2.9.3 (2026-07-10). See `CHANGEL
       run has touched this package. Two large Swift changes were written on Linux, with **no compiler**, and are
       therefore **reviewed, not compiled**:
       1. the pigeon 27 rewrite of `SwiftPdfxPlugin.swift`;
-      2. the **Swift 6 language mode** migration (`Package.swift` → `swift-tools-version: 6.0` +
+      2. the **Swift 6 language mode** migration (`Package.swift` → `swift-tools-version: 6.2` +
          `.swiftLanguageMode(.v6)`), with `@unchecked Sendable` on the plugin / `Document` / `Page` /
          `PdfPageTexture`, an `NSLock` inside `Repository`, and an `UncheckedSendable` box to carry pigeon's
          non-`@Sendable` completions across the render queue.

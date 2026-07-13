@@ -1,4 +1,6 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
+// Requires Xcode 26+. A floor, not a feature: the Swift 6 language mode below is identical at 6.0, and nothing here
+// uses a 6.1/6.2 API. It is set deliberately to keep the package on a current toolchain.
 import PackageDescription
 
 let package = Package(
