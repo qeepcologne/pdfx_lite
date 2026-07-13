@@ -1,3 +1,22 @@
+## 4.0.0
+
+### Breaking
+
+* **Removed `PdfView` and `PdfController`** — the image-backed viewer. Use **`PdfViewPinch` / `PdfControllerPinch`**,
+  which render through a platform texture and already zoom and page. Gone with them: `PdfViewBuilders`,
+  `PdfViewPageBuilder` and `PDfViewPageRenderer`. The pinch viewer's own builders (`PdfViewPinchBuilders`) are
+  unchanged, as are `PdfPageNumber` and the whole `renderer` API.
+* **Removed the `photo_view` dependency, and it is no longer re-exported.** `PdfView` was its only user — it wrapped
+  `PhotoViewGallery` — and `photo_view` is unmaintained: last release 0.15.0 (April 2024), last commit September 2024,
+  119 open issues. It had no transitive dependencies, so it was not a resolution risk, but it was a Flutter upgrade
+  away from being one, with nobody upstream to fix it. If you imported `PhotoView`, `PhotoViewComputedScale` or
+  `PhotoViewGalleryPageOptions` *through* `package:pdfx_lite/pdfx_lite.dart`, depend on `photo_view` directly.
+
+  `pdfx_lite` now has no third-party runtime dependencies beyond `meta`, `synchronized` and `vector_math`.
+
+  Rebuilding the image-backed viewer yourself is a `PageView` of `InteractiveViewer`s over `PdfPageImageProvider`,
+  which is still exported — that is essentially what `photo_view` was doing.
+
 ## 3.1.0+1
 
 * Docs only, no code change. Trimmed the README (the bug-fix list lived here and in the CHANGELOG; the CHANGELOG keeps

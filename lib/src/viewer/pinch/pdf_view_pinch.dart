@@ -10,8 +10,6 @@ import 'package:pdfx_lite/src/viewer/pdf_texture.dart';
 import 'package:vector_math/vector_math_64.dart' as math64;
 
 export 'package:pdfx_lite/src/viewer/pdf_page_image_provider.dart';
-export 'package:photo_view/photo_view.dart';
-export 'package:photo_view/photo_view_gallery.dart';
 
 part 'pdf_controller_pinch.dart';
 part 'pdf_view_pinch_builders.dart';

@@ -4,9 +4,10 @@ Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replac
 
 **Purpose:** minimal and legacy-free, for **current toolchains only** — no CocoaPods (SPM only), no `pdf.js`, no CMake, and built against the latest Flutter, AGP, Gradle, Android SDK and Xcode rather than older ones. If you need Web, desktop, or CocoaPods, use the upstream package instead.
 
-Same 2 APIs as upstream — the viewer unchanged, the renderer slightly reduced (see *Migrating from pdfx*):
+Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 - `renderer` — work with a PDF document, its pages, render a page to an image
-- `viewer` — Flutter widgets & controllers to show the render result
+- `viewer` — `PdfViewPinch`, the texture-backed viewer with pinch-to-zoom. Upstream's second, image-backed `PdfView`
+  is gone, and with it the `photo_view` dependency.
 
 ## Getting started
 
@@ -35,6 +36,11 @@ PdfViewPinch(controller: controller);
 3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
    are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
    failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
+4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone; it
+   existed only to wrap `photo_view`, which is unmaintained. `PdfViewPinch` renders through a platform texture, zooms
+   and pages already, and is the viewer upstream itself recommends. If you need the image-backed behaviour, build it
+   from the renderer: `PdfPageImageProvider` is still exported, and a `PageView` of `InteractiveViewer`s is what
+   `photo_view` was doing for you.
 
 ## What changed vs upstream
 
@@ -53,7 +59,8 @@ PdfViewPinch(controller: controller);
 | Swift / Swift-Tools | 5 / 5.9 | **6 / 6.2** — strict concurrency, Xcode 26+ |
 | **Dart** | | |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
-| Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |
+| Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
+| Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta`, `synchronized`, `vector_math` remain |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, and three more. See the
 [CHANGELOG](CHANGELOG.md).
