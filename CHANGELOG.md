@@ -15,6 +15,14 @@ history, kept for reference.
   `getPixels` now takes a required `String path`, and a null path from the native renderer throws `StateError`.
 * **`PdfNotSupportException` is now exported.** It is thrown to callers (webp on iOS) but lived in an unexported file,
   so it could not be caught by type.
+* **`PdfViewPinch` now uses Flutter's `InteractiveViewer`** instead of a vendored 1670-line copy, which upstream
+  carried for one custom knob: making a scroll event pan rather than zoom. **Touch is unaffected** — pan, pinch, fling
+  and paging go through `GestureDetector` and never produce a scroll event, and Flutter's defaults match the copy's
+  hardcoded ones (same friction constant, `PanAxis.free` ≡ `alignPanAxis: false`). The one change is a **mouse wheel**,
+  which now zooms instead of panning — reachable only on a device with a mouse attached (or an emulator). In exchange
+  the viewer picks up ~3 years of upstream fixes; the copy predated `panAxis`, `trackpadScrollCausesScale` and
+  `scaleFactor`, and still used `alignPanAxis`, which Flutter has removed. `PdfControllerPinch` now extends Flutter's
+  `TransformationController`, so it can be used anywhere one is expected.
 
 ### Fixes not in upstream
 
