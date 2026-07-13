@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/widgets.dart'
-    hide InteractiveViewer, TransformationController;
+import 'package:flutter/widgets.dart';
 import 'package:pdfx_lite/src/renderer/interfaces/document.dart';
 import 'package:pdfx_lite/src/renderer/interfaces/page.dart';
 import 'package:pdfx_lite/src/viewer/base/base_pdf_builders.dart';
 import 'package:pdfx_lite/src/viewer/base/base_pdf_controller.dart';
-import 'package:pdfx_lite/src/viewer/interactive_viewer.dart';
 import 'package:pdfx_lite/src/viewer/pdf_texture.dart';
 import 'package:vector_math/vector_math_64.dart' as math64;
 
@@ -560,9 +558,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         final docSize = _docSize ?? const Size(10, 10); // dummy size
         return InteractiveViewer(
           transformationController: _controller,
-          scrollControls: InteractiveViewerScrollControls.scrollPans,
           constrained: false,
-          alignPanAxis: false,
           boundaryMargin: _minScale < 1
               ? const EdgeInsets.all(double.infinity)
               : EdgeInsets.zero,
