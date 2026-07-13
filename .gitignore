@@ -1,11 +1,11 @@
+# Applies to the plugin itself. `example/` is a `flutter create` app and keeps the
+# template's own .gitignore files -- Flutter regenerates them, so do not fold them in here.
+
 # Dart/Flutter
 .dart_tool/
-.packages
-.pub-cache/
-.pub/
 build/
-.flutter-plugins
 .flutter-plugins-dependencies
+# A library, not an app: the lockfile is the consumer's business, not ours.
 pubspec.lock
 
 # IDE
@@ -14,21 +14,17 @@ pubspec.lock
 *.iws
 *.ipr
 
-# iOS
-ios/.generated/
-ios/Flutter/Generated.xcconfig
-ios/Flutter/flutter_export_environment.sh
-ios/Pods/
-ios/.symlinks/
+# iOS -- the plugin ships as a Swift package (ios/pdfx_lite/), so there is no Xcode
+# project, no CocoaPods, and none of the Flutter-generated ios/ app scaffolding a
+# non-SPM plugin would have. These are what SPM leaves behind instead.
+.build/
+.swiftpm/
 **/DerivedData/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
 
 # Android
 android/.gradle/
 android/local.properties
 android/captures/
-android/.cxx/
 
 # macOS
 .DS_Store
