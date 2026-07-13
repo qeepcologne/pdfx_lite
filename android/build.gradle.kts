@@ -5,7 +5,7 @@ plugins {
 //AGP 9 only: Kotlin is built in, so no `kotlin-android` plugin and no compat guard.
 //`src/main/kotlin` is a default source dir.
 android {
-    namespace = "io.scer.pdf_renderer"
+    namespace = "io.scer.pdfx"
     compileSdk = 37
 
     defaultConfig {

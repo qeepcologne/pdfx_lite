@@ -10,15 +10,9 @@ Open issues for `pdfx_lite`, forked from `pdfx` 2.9.3 (2026-07-10). See `CHANGEL
 - [ ] **No tests.** All 8 upstream tests drove `PdfxPlatformMethodChannel`, which was removed (pigeon covers both
       remaining platforms). A pigeon-based suite needs `BasicMessageChannel` mocking and has not been written.
 
-## Android
-
-- [ ] `namespace` is `io.scer.pdf_renderer` while the plugin package is `io.scer.pdfx`. Left as upstream had it: the
-      library ships no resources, so the namespace only names the manifest package, and renaming risks the plugin
-      registrant for no gain. Revisit only if AGP starts caring.
-
 ## Repo
 
-- [ ] Create `qeepcologne/pdfx_lite` on GitHub and push (8 local commits).
+- [ ] Create `qeepcologne/pdfx_lite` on GitHub and push (9 local commits).
 - [ ] Report the Android crop bug (`cropW` read from `width` instead of `cropWidth`, fixed here) upstream against
       `ScerIO/packages.flutter` — it is still broken in `pdfx` and affects every Android user of `render(cropRect:)`.
 

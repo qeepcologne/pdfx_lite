@@ -24,6 +24,9 @@
   150x200 image of the correct region, where it previously threw.
 * Added a real `example/` host app (the old `example/main.dart` was a snippet, not a buildable project) with a 2-page
   `assets/hello.pdf`, so the plugin can actually be built and driven on a device.
+* Android: `namespace` is now `io.scer.pdfx`, matching the plugin package (it was `io.scer.pdf_renderer`, a leftover
+  from the pre-rename upstream). Safe because the library ships no resources and the manifest carries no package
+  attribute, so nothing referenced a generated `R`/`BuildConfig`.
 * Android: pinned `compileOptions` and the Kotlin `jvmTarget` to 17. Neither was declared, so javac defaulted to 11
   while Kotlin followed the JDK toolchain, and AGP 9 fails the build on the mismatch.
 * Forked from pdfx 2.9.3 as `pdfx_lite`: Android + iOS only.
