@@ -1,3 +1,8 @@
+## 3.2.0+1
+
+* Docs only, no code change. Shortened the `PdfView` → `PdfViewPinch` migration step in the README; the detail it
+  carried is already in 3.2.0 below.
+
 ## 3.2.0
 
 ### Breaking
