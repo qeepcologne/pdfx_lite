@@ -4,13 +4,7 @@ Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replac
 
 **Purpose:** minimal and legacy-free, for **current toolchains only** — no CocoaPods (SPM only), no `pdf.js`, no CMake, and built against the latest Flutter, AGP, Gradle, Android SDK and Xcode rather than older ones. If you need Web, desktop, or CocoaPods, use the upstream package instead.
 
-> **Status: Android verified, iOS not yet built.** Android is built and driven on a real device (see `example/`).
-> The iOS half — the pigeon 27 port *and* the Swift 6 strict-concurrency migration — was written on a Linux machine
-> with no Xcode, so its Swift is **reviewed, not compiled**. Expect the first Mac build to find things; if strict
-> concurrency fights back, `.swiftLanguageMode(.v5)` in `Package.swift` restores the old semantics without giving up
-> the `Repository` lock. Don't ship iOS on this until someone has built it on a Mac.
->
-> There are also **no tests** — the 8 upstream ones drove the method-channel implementation, which is gone.
+> **No tests.** The 8 upstream ones drove the method-channel implementation, which is gone.
 
 Includes 2 APIs, unchanged from upstream:
 - `renderer` — work with a PDF document, its pages, render a page to an image
