@@ -35,10 +35,6 @@ Includes 2 APIs, unchanged from upstream:
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |
 
-Still upstream's: the pinch/simple viewers, and the page-rendering logic itself. Diverged: the **public API**
-(`password`, `hasPdfSupport()` and `RgbaData` are gone — see *Migrating* below) and both **native bridges**, which were
-regenerated from one pigeon 27 schema and repaired along the way.
-
 ### Bug fixes not in upstream
 
 - **Cropped rendering on Android was broken.** `renderPage` took the crop width from the *render* width instead of
