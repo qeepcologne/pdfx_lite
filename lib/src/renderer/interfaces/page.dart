@@ -13,8 +13,20 @@ part 'page_texture.dart';
 enum PdfPageImageFormat {
   jpeg(0),
   png(1),
-  // /// ***Attention!*** Works only on android
-  // static const PdfPageImageFormat webp = PdfPageImageFormat(2);
+
+  /// **Android only.** [PdfPage.render] throws [UnsupportedError] for this on iOS.
+  ///
+  /// iOS has no first-party WebP *encoder*: `UIImage` offers only `jpegData` /
+  /// `pngData`, and ImageIO's `CGImageDestination` rejects `org.webmproject.webp`
+  /// (it can read WebP since iOS 14, but not write it). Producing WebP there
+  /// would mean linking Google's `libwebp`.
+  ///
+  /// Branch on the platform rather than catching — on iOS this is a caller bug,
+  /// not a runtime failure:
+  ///
+  /// ```dart
+  /// format: Platform.isIOS ? PdfPageImageFormat.png : PdfPageImageFormat.webp,
+  /// ```
   webp(2);
 
   const PdfPageImageFormat(this.value);

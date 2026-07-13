@@ -1,8 +1,5 @@
 export 'src/renderer/interfaces/document.dart';
 export 'src/renderer/interfaces/page.dart';
-// PdfNotSupportException is thrown to callers (webp on iOS), so it must be
-// nameable by them.
-export 'src/renderer/interfaces/platform.dart' show PdfNotSupportException;
 
 export 'src/viewer/pdf_page_image_provider.dart';
 export 'src/viewer/base/base_pdf_builders.dart';

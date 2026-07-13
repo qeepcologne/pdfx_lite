@@ -217,9 +217,14 @@ class PdfPageImagePigeon extends PdfPageImage {
     required bool forPrint,
     required bool removeTempFile,
   }) async {
+    //A caller bug, not a runtime failure: iOS has no WebP encoder at all, so this is knowable up front from
+    //`Platform.isIOS` and should be branched on, not caught. Hence `UnsupportedError` (an `Error`) rather than an
+    //exception. Without this guard the native side still refuses -- `CompressFormat(rawValue: 2)` is nil -- but it
+    //surfaces as an opaque PlatformException("Unsupported format: 2").
     if (format == PdfPageImageFormat.webp && Platform.isIOS) {
-      throw PdfNotSupportException(
-        'PDF Renderer on iOS does not support WEBP format',
+      throw UnsupportedError(
+        'PdfPageImageFormat.webp is not supported on iOS: the platform has no '
+        'WebP encoder. Use PdfPageImageFormat.png or .jpeg instead.',
       );
     }
 

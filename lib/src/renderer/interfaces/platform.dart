@@ -21,12 +21,3 @@ abstract class PdfxPlatform {
 
   Future<PdfDocument> openData(FutureOr<Uint8List> data);
 }
-
-class PdfNotSupportException implements Exception {
-  PdfNotSupportException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => '$runtimeType: $message';
-}

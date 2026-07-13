@@ -1,3 +1,29 @@
+## 3.3.0
+
+### Breaking
+
+Breaking in a minor again, same reasoning as 3.2.0 — the fork has essentially one consumer.
+
+* **Removed `PdfNotSupportException`; `PdfPage.render(format: webp)` on iOS now throws `UnsupportedError`.** It had one
+  throw site: WebP on iOS. Whether that is an `Exception` or an `Error` decides the type, and it is an `Error` —
+  a caller can know the answer up front from `Platform.isIOS`, with no I/O and no data dependence, so passing `webp`
+  there is a precondition violation to be branched on, not a runtime failure to be caught:
+
+  ```dart
+  format: Platform.isIOS ? PdfPageImageFormat.png : PdfPageImageFormat.webp,
+  ```
+
+  `UnsupportedError` is dart:core's type for exactly this ("an instance cannot implement one of the methods in its
+  signature"). Not `PlatformException`: that models an error which *crossed* the method channel, and this check runs in
+  Dart and never reaches Swift — an opaque `PlatformException("Unsupported format: 2")` from the native side is what
+  you get *without* the guard, and is what it exists to prevent.
+
+* **`PdfPageImageFormat.webp` is documented as Android-only again.** The warning was lost when upstream migrated to an
+  enhanced enum — the old `static const` line was commented out and took the doc comment with it, so the value
+  advertised nothing in autocomplete. iOS has no first-party WebP *encoder* at all (`UIImage` does JPEG/PNG only, and
+  ImageIO's `CGImageDestination` rejects `org.webmproject.webp` — it reads WebP since iOS 14 but cannot write it), so
+  this is a platform gap, not something the plugin can close without linking `libwebp`.
+
 ## 3.2.0+1
 
 * Docs only, no code change. Shortened the `PdfView` → `PdfViewPinch` migration step in the README; the detail it
