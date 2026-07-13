@@ -7,13 +7,15 @@ Two bugs inherited from upstream, both still present in `pdfx` 2.9.2.
   sets the document height to *exactly* the viewport height, so `documentProgress`'s
   `(docHeight - viewHeight)` divisor is always zero; the resulting `NaN` then hit `.round()`, which throws. Vertical
   scrolling hit the same thing whenever a document happened to be no taller than the viewport. Now guarded: a document
-  with nothing to scroll reports progress `0.0`. (upstream #602, #604)
+  with nothing to scroll reports progress `0.0`. Upstream has two partial patches open, neither merged:
+  [#602](https://github.com/ScerIO/packages.flutter/pull/602), [#604](https://github.com/ScerIO/packages.flutter/pull/604)
+  — both describe only the vertical case; the horizontal one was not reported.
 * **Breaking-ish: `PdfPage.render()` now defaults to `format: png`**, not `jpeg`. The default contradicted itself —
   the implementation (`PdfPagePigeon.render`) and both native sides already defaulted to PNG, and the doc comment said
   so, but the abstract `PdfPage.render()` that callers actually bind to said JPEG. Since `backgroundColor` is derived
   from the format, a plain `render()` also silently produced a white background instead of a transparent one. If you
   relied on the JPEG default, pass `format: PdfPageImageFormat.jpeg` explicitly. `PdfView` is unaffected — it always
-  passed both arguments. (upstream #581)
+  passed both arguments. Upstream: [#581](https://github.com/ScerIO/packages.flutter/pull/581), unmerged.
 
 ## 3.0.0
 
@@ -42,6 +44,8 @@ history, kept for reference.
   `TransformationController`, so it can be used anywhere one is expected.
 
 ### Fixes not in upstream
+
+None of these have an upstream issue — they were found here, and are still live in `pdfx` 2.9.2.
 
 * **Cropped rendering on Android was broken.** `renderPage` took the crop width from the render width instead of
   `cropWidth`. Since the native code calls `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)`, which requires

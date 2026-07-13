@@ -57,7 +57,19 @@ PdfViewPinch(controller: controller);
 
 ### Bug fixes not in upstream
 
-All still present in `pdfx` 2.9.2:
+All still present in `pdfx` 2.9.2.
+
+Reported upstream, but unmerged — `pdfx` has had no release since 2.9.2 (June 2025):
+
+- **`PdfViewPinch(scrollDirection: Axis.horizontal)` threw and rendered a blank page** —
+  `Unsupported operation: Infinity or NaN toInt`, on every frame. The horizontal layout makes the document exactly as
+  tall as the viewport, so the scroll-progress divisor is always zero. Vertical scrolling hit it too whenever a
+  document was no taller than the viewport. ([#602](https://github.com/ScerIO/packages.flutter/pull/602),
+  [#604](https://github.com/ScerIO/packages.flutter/pull/604) — both describe only the vertical case)
+- **`PdfPage.render()` defaulted to a different format than every layer beneath it**, which also silently flipped the
+  background from transparent to white. ([#581](https://github.com/ScerIO/packages.flutter/pull/581))
+
+Not reported upstream — found here:
 
 - **Cropped rendering on Android.** `render(cropRect: …)` did not just return the wrong region — it **threw** for any
   crop not flush to the left edge, because the crop width was read from the wrong field. iOS was always correct.
