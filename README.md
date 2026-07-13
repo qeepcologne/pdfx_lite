@@ -17,17 +17,17 @@ Includes 2 APIs, unchanged from upstream:
 | | pdfx | pdfx_lite |
 |---|---|---|
 | Platforms | Android, iOS, macOS, Windows, Web | **Android, iOS** |
-| iOS integration | CocoaPods podspec + SPM | **SPM only** |
 | Platform channel | pigeon 4 (mobile) + method channel (web/Windows) | pigeon 27 only — generated Kotlin + Swift + Dart |
 | Generated native bridge | 1479 lines of Java + a hand-translated `Messages.swift` | generated from one schema, no Java |
-| Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | **Android** | | |
 | minSdk / compileSdk | 16 / 35 | 24 / 37 |
 | Gradle | 8.10.2 | 9.6.1 |
 | AGP | Groovy `build.gradle`, AGP 8.5.2 + `kotlin-android` | **9 only**, Kotlin DSL |
 | **iOS** | | |
+| Integration | CocoaPods podspec + SPM | **SPM only** |
 | Deployment target | 13.0 | 15.0 |
 | **Dart** | | |
+| Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |
 | Tests | 8 (method-channel) | none — the implementation they covered is gone |
 
