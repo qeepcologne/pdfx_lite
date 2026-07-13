@@ -1,6 +1,9 @@
-## 4.0.0
+## 3.2.0
 
 ### Breaking
+
+Breaking, in a minor version — deliberate, while the fork still has essentially one consumer. If you use `PdfView`,
+pin `pdfx_lite: 3.1.0+1` and migrate when convenient.
 
 * **Removed `PdfView` and `PdfController`** — the image-backed viewer. Use **`PdfViewPinch` / `PdfControllerPinch`**,
   which render through a platform texture and already zoom and page. Gone with them: `PdfViewBuilders`,
