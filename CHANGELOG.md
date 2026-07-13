@@ -1,3 +1,8 @@
+## 3.1.0+1
+
+* Docs only, no code change. Trimmed the README (the bug-fix list lived here and in the CHANGELOG; the CHANGELOG keeps
+  it) and linked the upstream reports.
+
 ## 3.1.0
 
 Two bugs inherited from upstream, both still present in `pdfx` 2.9.2.
