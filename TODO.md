@@ -51,9 +51,9 @@ Pick (2) only when something actually needs it — e.g. if `esim-app` ever has t
 
 ## 3. Do not take
 
-- **#594 "Expose `InteractiveViewer` onInteraction-methods"** — three nullable callbacks that do nothing unless a
-  caller passes them. Speculative public API for a use case nobody here has; it stays a 15-line change if one ever
-  turns up. Add it when something needs it, not before.
+- **PR #594 "Expose `InteractiveViewer` onInteraction-methods"** — a *feature* PR, not a bug: nothing is broken. It
+  adds three nullable callbacks that do nothing unless a caller passes them. Speculative public API for someone else's
+  use case; it stays a 15-line change if one ever turns up here. Add it when something needs it, not before.
 - **Upstreaming our fixes.** `ScerIO/packages.flutter` is dormant: no release since `pdfx` 2.9.2 (June 2025), no
   commit to the repo since December 2025, ~200 open issues and PRs unmerged for over a year — including the two
   partial patches for the NaN crash we fixed in 3.1.0. Patches sent there would sit. Our fixes are recorded in the
