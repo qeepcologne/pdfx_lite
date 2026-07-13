@@ -43,7 +43,7 @@ Includes 2 APIs, unchanged from upstream:
   `cropX > 0` threw `IllegalArgumentException: x + width must be <= bitmap.width()`, surfacing in Dart as
   `PlatformException(pdf_renderer, Unexpected error, …)`. So `render(cropRect: …)` did not merely return the wrong
   region on Android, it failed outright whenever the crop was not flush to the left edge. iOS was always correct.
-  Still broken in `pdfx` as of 2.9.3.
+  Still broken in `pdfx` as of 2.9.2.
 - **`renderPage` on iOS called its completion twice** on a render error (once in the `catch`, once again in the
   trailing `main.async`), and reported failure as `completion(nil, nil)` — a null reply with no error.
 
@@ -77,5 +77,5 @@ PdfViewPinch(controller: controller);
 
 ## Upstream
 
-Forked from [ScerIO/packages.flutter](https://github.com/ScerIO/packages.flutter) at `pdfx` 2.9.3. Bug fixes to the
+Forked from [ScerIO/packages.flutter](https://github.com/ScerIO/packages.flutter) at `pdfx` 2.9.2. Bug fixes to the
 shared renderer/viewer code belong upstream; this fork exists only to drop platforms and modernise the toolchain.

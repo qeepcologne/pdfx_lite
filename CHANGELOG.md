@@ -1,107 +1,62 @@
 ## 3.0.0
 
-First `pdfx_lite` release, forked from `pdfx` 2.9.3. **3.0.0, not 2.9.3:** the public API breaks (`password`,
-`hasPdfSupport()` and `RgbaData` are gone) and platforms are dropped, so it cannot claim compatibility with any `pdfx`
-release. Version numbers below this line are upstream `pdfx`'s history, kept for reference.
+First `pdfx_lite` release, forked from `pdfx` **2.9.2** (upstream's latest). **3.0.0**, because the public API breaks
+and three platforms are gone — it is not compatible with any `pdfx` release. Versions below the line are upstream's
+history, kept for reference.
 
-* **iOS: Swift 6 language mode.** `Package.swift` moves to `swift-tools-version: 6.2` (**requires Xcode 26+**) with
-  `.swiftLanguageMode(.v6)`. The tools version is a toolchain floor, not a feature gate — the language mode is equally
-  strict from 6.0 — and is set deliberately to keep the package current.
-  Strict concurrency exposed a real data race: `DocumentRepository` / `PageRepository` were plain dictionaries written
-  on the platform thread and read from the render queue, unsynchronised. `Repository` now holds an `NSLock`. The plugin,
-  `Document`, `Page` and `PdfPageTexture` are `@unchecked Sendable` (each documents which lock or thread discipline
-  makes that true), and pigeon's completions — which it generates as plain, non-`@Sendable` closures — ride to the
-  render queue in an `UncheckedSendable` box. **Not compiled:** written on Linux without Xcode — reviewed, not built.
-* **Android: `Bitmap.CompressFormat.WEBP`** (deprecated since API 30) gives way to `WEBP_LOSSLESS` / `WEBP_LOSSY`
-  behind an API-30 check, keeping the old constant for 24–29. Quality 100 selects lossless. The Kotlin compiler never
-  warned about this — the constant is flagged deprecated in `android.jar`, but a clean compile says nothing.
-* **Android: `renderPage` no longer leaks a `CoroutineScope` per call.** It built a fresh
-  `CoroutineScope(Dispatchers.IO)` on every render and never cancelled it, so a render outliving engine detach kept
-  going and then replied on a dead channel. `Messages` now owns one `SupervisorJob`-backed scope, cancelled from
-  `onDetachedFromEngine`.
-* **Dropped `plugin_platform_interface`.** `PdfxPlatform` extended `PlatformInterface` for the token /
-  settable-`instance` machinery that lets third parties register their own platform implementation. There is exactly
-  one implementation (`PdfxPlatformPigeon`, serving both Android and iOS) and `PdfxPlatform` is not even exported, so
-  the base class only cost a dependency. It is now a plain abstract class.
-* Swept out leftovers from the platform removals:
-  - `RenderPageReply.data` — neither native side ever set it and Dart only reads `.path`; a dead field on the wire.
-  - `Bitmap.toByteArray()` (Android `Hooks.kt`) — uncalled; it served the in-memory bytes path that went with
-    `RgbaData`.
-  - `assertHasPdfSupport()` and `PlatformNotSupportedException` — the guard could never fire, and it was called
-    without `await`, so it could not have propagated to the caller anyway. (`hasPdfSupport()` itself went too — see
-    above.)
-  - Collapsed two conditional-export shims left behind by the web renderer: `get_pixels/main.dart` +
-    `get_pixels/io.dart` became `get_pixels.dart` (and `getPlatformPixels` is just `getPixels`), and
-    `viewer/wrappers/pdf_texture.dart` + `implementations/pdf_texture_native.dart` became `viewer/pdf_texture.dart`.
-* `PdfNotSupportException` is now exported. It is thrown to callers (webp on iOS) but lived in an unexported file, so
-  it could not be caught by type.
-* **Breaking: removed `hasPdfSupport()`.** It answered a question only the web renderer could ever fail — Android and
-  iOS both render PDFs natively — so it was hardcoded `true`. The internal guard it fed (`assertHasPdfSupport`) was
-  already gone.
-* **Breaking: removed the `password` parameter** from `PdfDocument.openFile` / `openAsset` / `openData`, and the
-  matching fields from the pigeon schema. Upstream accepted it on every platform but only the **web** renderer ever
-  honoured it: on Android and iOS it was sent over the channel and silently ignored, so encrypted documents failed to
-  open anyway (`Can't create PDF renderer` / `Invalid PDF format`). Removing it turns a silent no-op into a compile
-  error. See "Migrating from pdfx" in the README.
-* **Regenerated the pigeon bridge with pigeon 27.** pigeon 4.2.14 could only emit Java (Android) and Obj-C (iOS), so
-  the fork carried 1479 lines of generated `Pigeon.java` plus a hand-written `Messages.swift` — a manual translation
-  of the Obj-C output that pigeon could no longer regenerate. Pigeon 27 emits Kotlin, Swift and Dart natively from the
-  same `pigeons/messages.dart`, so all three sides are generated again from one schema:
-  - Deleted `android/src/main/java/` (the whole Java source set) and `ios/.../Messages.swift`; added the generated
-    `Pigeon.g.kt` and `Pigeon.g.swift`.
-  - `SwiftPdfxPlugin.swift` now sees native `Int64`/`Double`/`Bool` and `Result`-based completions instead of
-    `NSNumber`, `as! Int` force-casts and `AutoreleasingUnsafeMutablePointer<FlutterError?>`.
-  - `Messages.kt` implements the generated Kotlin `PdfxApi`; the hand-rolled `PdfRendererException` is gone in favour
-    of pigeon's `FlutterError`, which carries the same code/message/details to Dart.
-  - The message schema is unchanged, so no Dart call site moved. The wire codec did change, but all three sides are
-    generated and ship together.
-  - `pigeon: ^27.1.1` is a **dev** dependency — dev deps are not resolved transitively, so nothing reaches consumers.
-    The old analyzer conflict is gone: pigeon 4 pinned `analyzer` 4.x and Dart `<3.0.0`; pigeon 27 wants
-    `analyzer >=10 <13`, which resolves against our `sdk: ^3.12.0`.
-* **Fixed cropped rendering on Android** (upstream bug, still present in `pdfx`). `Messages.kt` `renderPage` took the
-  crop width from `message.width` instead of `message.cropWidth`, so the crop always spanned the full render width.
-  Worse, `Page.render` then calls `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)`, which requires
-  `cropX + cropW <= bitmap.width` — so any crop with `cropX > 0` threw `IllegalArgumentException: x + width must be
-  <= bitmap.width()`, surfacing in Dart as `PlatformException(pdf_renderer, Unexpected error, ...)`. iOS was always
-  correct. Verified on device: `render(cropRect: Rect.fromLTWH(150, 0, 150, 200))` on a 300x400 page now returns a
-  150x200 image of the correct region, where it previously threw.
-* Added a real `example/` host app (the old `example/main.dart` was a snippet, not a buildable project) with a 2-page
-  `assets/hello.pdf`, so the plugin can actually be built and driven on a device.
-* Android: `namespace` is now `io.scer.pdfx`, matching the plugin package (it was `io.scer.pdf_renderer`, a leftover
-  from the pre-rename upstream). Safe because the library ships no resources and the manifest carries no package
-  attribute, so nothing referenced a generated `R`/`BuildConfig`.
-* Android: pinned `compileOptions` and the Kotlin `jvmTarget` to 17. Neither was declared, so javac defaulted to 11
-  while Kotlin followed the JDK toolchain, and AGP 9 fails the build on the mismatch.
-* Forked from pdfx 2.9.3 as `pdfx_lite`: Android + iOS only.
-* Removed the Web (`pdf.js`), macOS and Windows renderers, and the CocoaPods podspec — SPM only.
-* Removed the method-channel platform implementation; pigeon covers both remaining platforms.
-* Dropped `flutter_web_plugins`, `web` and `universal_platform` dependencies.
-* Migrated deprecated `vector_math` `translate`/`scale` to `translateByDouble`/`scaleByDouble`.
-* Dropped unused `uuid` and `extension` dependencies (they served the web renderer only).
-* Dropped the `pigeon` dev dependency — v4 pins `analyzer` 4.x; the generated files are checked in and the message API
-  is frozen. Add it back temporarily to regenerate from `pigeons/messages.dart`.
-* Bumped `flutter_lints` to 6; `synchronized` to ^3.4.1.
-* Android: minSdk 16 → 24, compileSdk 35 → 37, Gradle 8.10.2 → 9.6.1, kotlinx-coroutines 1.8.1 → 1.10.2.
-  Dropped the `agpVersion < 9` compat guard (AGP 9's built-in Kotlin), the `sourceSets`/`compileOptions` blocks, and
-  `gradle.properties` (`enableJetifier` is gone in AGP 9, `useAndroidX` is the default).
-* Android: dropped the `@TargetApi`/`@RequiresApi(LOLLIPOP)` annotations (and their now-unused `android.os.Build`
-  imports) from all six Kotlin sources. They gated on API 21, below the current `minSdk 24`.
-* iOS: deployment target 13.0 → 15.0. Stripped every `#if os(iOS)` / `#elseif os(macOS)` block from the Swift sources
-  (incl. the whole `NSColor` extension) — the SPM package is iOS-only, so the macOS branches were unreachable.
-* **Breaking:** removed the exported `RgbaData` type. Nothing produced or consumed it once the web texture renderer
-  was gone.
-* `getPixels`/`getPlatformPixels` now take a required `String path`; the optional in-memory `bytes` fallback had no
-  caller left. A null path from the native renderer throws `StateError` instead of being silently tolerated.
-* **Removed the test suite.** All 8 tests drove `PdfxPlatformMethodChannel`, which no longer exists. A pigeon-based
-  suite has not been written — the fork currently ships with no tests.
+### Breaking
+
+* **Android + iOS only.** The Web (`pdf.js`), macOS and Windows renderers are gone, along with the CocoaPods podspec —
+  **SPM only**. The method-channel implementation went with them; pigeon covers both remaining platforms.
+* **Removed `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`. Only the web renderer ever honoured
+  it — on mobile it was sent over the channel and ignored, so encrypted PDFs failed to open regardless.
+* **Removed `hasPdfSupport()`.** It was hardcoded `true` once web was gone.
+* **Removed `RgbaData`** and the in-memory `getPixels(bytes:)` path — both were reachable only from the web renderer.
+  `getPixels` now takes a required `String path`, and a null path from the native renderer throws `StateError`.
+* **`PdfNotSupportException` is now exported.** It is thrown to callers (webp on iOS) but lived in an unexported file,
+  so it could not be caught by type.
+
+### Fixes not in upstream
+
+* **Cropped rendering on Android was broken.** `renderPage` took the crop width from the render width instead of
+  `cropWidth`. Since the native code calls `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)`, which requires
+  `cropX + cropW <= bitmap.width`, any crop with `cropX > 0` threw `IllegalArgumentException` — so `render(cropRect:)`
+  failed outright unless the crop was flush to the left edge. iOS was always correct.
+* **iOS `renderPage` called its completion twice** on a render error, and signalled failure as `completion(nil, nil)` —
+  a null reply with no error.
+* **Data race in the iOS repositories.** `DocumentRepository` / `PageRepository` were plain dictionaries written on the
+  platform thread and read from the render queue, unsynchronised. `Repository` now holds an `NSLock`.
+* **`renderPage` leaked a `CoroutineScope` per call on Android** and never cancelled it, so a render outliving engine
+  detach kept going and replied on a dead channel. One `SupervisorJob` scope now dies with the engine.
+
+### Native bridge
+
+* **Regenerated with pigeon 27**: Kotlin, Swift and Dart from one schema. pigeon 4 could only emit Java and Obj-C, so
+  the fork had been carrying 1479 lines of generated `Pigeon.java` plus a hand-translated `Messages.swift` that pigeon
+  could no longer regenerate at all. Swift now gets native `Int64`/`Double`/`Bool` and `Result`-based completions
+  instead of `NSNumber`, `as!` casts and `AutoreleasingUnsafeMutablePointer<FlutterError?>`.
+* `pigeon` is a **dev** dependency, so nothing reaches consumers.
+
+### Toolchain
+
 * Requires Dart ^3.12 / Flutter >=3.44.
-* Still MIT. Added a fork copyright line alongside upstream's, which stays — this is a derivative work. Dropped the
-  `AUTHORS` file: it was Flutter-template boilerplate (its header credited "the Flutter project") and carried no
-  legal weight; MIT asks for the copyright notice, which `LICENSE` now carries for both parties.
+* **Android:** minSdk 24, compileSdk 37, AGP 9 (Kotlin DSL), Gradle 9.6.1, Java/Kotlin target 17, kotlinx-coroutines
+  1.10.2. `namespace` is `io.scer.pdfx`. `Bitmap.CompressFormat.WEBP` (deprecated at API 30) gives way to
+  `WEBP_LOSSLESS` / `WEBP_LOSSY`.
+* **iOS:** Swift Package Manager support, deployment target 15.0, and **Swift 6 language mode**
+  (`swift-tools-version: 6.2`, needs Xcode 26+).
+* **Dependencies dropped:** `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`,
+  `plugin_platform_interface`. Only `meta`, `photo_view`, `synchronized` and `vector_math` remain.
 
-## 2.9.3
+### Notes
 
-* Added Swift Package Manager support for iOS.
+* ⚠️ **iOS has not been compiled.** Both the pigeon 27 port and the Swift 6 migration were written without Xcode —
+  reviewed, not built. If strict concurrency fights back, `.swiftLanguageMode(.v5)` in `Package.swift` is the escape
+  hatch. Android is built and driven on a real device.
+* **No tests.** All 8 upstream tests drove the method-channel implementation, which no longer exists.
+* Added a runnable `example/` app (upstream's `example/main.dart` was a snippet, not a buildable project).
+* Still MIT. A fork copyright line sits alongside upstream's, which stays — this is a derivative work. `AUTHORS` was
+  Flutter-template boilerplate and is folded into `LICENSE`.
 
 ## 2.9.2
 
