@@ -32,15 +32,15 @@ Includes the same 2 APIs as upstream:
 
 ### Bug fixes not in upstream
 
-- **Cropped rendering on Android was broken.** `renderPage` took the crop width from the *render* width instead of
-  `cropWidth`, so a crop always spanned the full width — and because the native code then calls
-  `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)`, which requires `cropX + cropW <= bitmap.width`, any crop with
-  `cropX > 0` threw `IllegalArgumentException: x + width must be <= bitmap.width()`, surfacing in Dart as
-  `PlatformException(pdf_renderer, Unexpected error, …)`. So `render(cropRect: …)` did not merely return the wrong
-  region on Android, it failed outright whenever the crop was not flush to the left edge. iOS was always correct.
-  Still broken in `pdfx` as of 2.9.2.
-- **`renderPage` on iOS called its completion twice** on a render error (once in the `catch`, once again in the
-  trailing `main.async`), and reported failure as `completion(nil, nil)` — a null reply with no error.
+All still present in `pdfx` 2.9.2:
+
+- **Cropped rendering on Android.** `render(cropRect: …)` did not just return the wrong region — it **threw** for any
+  crop not flush to the left edge, because the crop width was read from the wrong field. iOS was always correct.
+- **iOS `renderPage` called its completion twice** on a render error, and signalled failure as a null reply with no error.
+- An unsynchronised **data race** in the iOS document/page repositories, and a **`CoroutineScope` leaked per render**
+  on Android.
+
+Details in the [CHANGELOG](CHANGELOG.md).
 
 ## Getting started
 
