@@ -3,30 +3,17 @@ import 'dart:typed_data';
 
 import 'package:pdfx_lite/src/renderer/interfaces/document.dart';
 import 'package:pdfx_lite/src/renderer/io/platform_pigeon.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 /// Abstraction layer to isolate [PdfDocument] implementation
 /// from the public interface.
-abstract class PdfxPlatform extends PlatformInterface {
-  /// Constructs a PdfxPlatform.
-  PdfxPlatform() : super(token: _token);
-
-  static final Object _token = Object();
-
-  //Android and iOS both speak pigeon; the method-channel implementation existed only for Windows/web.
-  static PdfxPlatform _instance = PdfxPlatformPigeon();
-
-  /// The default instance of [PdfxPlatform] to use.
-  ///
-  /// Defaults to [PdfxPlatformPigeon].
-  static PdfxPlatform get instance => _instance;
-
-  /// Platform-specific plugins should set this with their own platform-specific
-  /// class that extends [PdfxPlatform] when they register themselves.
-  static set instance(PdfxPlatform instance) {
-    PlatformInterface.verifyToken(instance, _token);
-    _instance = instance;
-  }
+///
+/// This is a plain abstract class, not a `PlatformInterface`. The token /
+/// settable-instance machinery exists so third parties can register their own
+/// platform implementation; this package has exactly one ([PdfxPlatformPigeon],
+/// which serves both Android and iOS), so it only cost a dependency.
+abstract class PdfxPlatform {
+  /// The instance of [PdfxPlatform] to use.
+  static final PdfxPlatform instance = PdfxPlatformPigeon();
 
   Future<PdfDocument> openFile(String filePath, {String? password});
 

@@ -1,5 +1,24 @@
 ## 2.9.3 (pdfx_lite fork)
 
+* **Dropped `plugin_platform_interface`.** `PdfxPlatform` extended `PlatformInterface` for the token /
+  settable-`instance` machinery that lets third parties register their own platform implementation. There is exactly
+  one implementation (`PdfxPlatformPigeon`, serving both Android and iOS) and `PdfxPlatform` is not even exported, so
+  the base class only cost a dependency. It is now a plain abstract class.
+* Swept out leftovers from the platform removals:
+  - `RenderPageReply.data` — neither native side ever set it and Dart only reads `.path`; a dead field on the wire.
+  - `Bitmap.toByteArray()` (Android `Hooks.kt`) — uncalled; it served the in-memory bytes path that went with
+    `RgbaData`.
+  - `assertHasPdfSupport()` and `PlatformNotSupportedException` — `hasPdfSupport()` is now hardcoded `true`, so the
+    guard could never fire. It was also called without `await`, so it could not have propagated to the caller anyway.
+    `hasPdfSupport()` itself stays exported for source compatibility with `pdfx`.
+  - Collapsed two conditional-export shims left behind by the web renderer: `get_pixels/main.dart` +
+    `get_pixels/io.dart` became `get_pixels.dart` (and `getPlatformPixels` is just `getPixels`), and
+    `viewer/wrappers/pdf_texture.dart` + `implementations/pdf_texture_native.dart` became `viewer/pdf_texture.dart`.
+* `PdfNotSupportException` is now exported. It is thrown to callers (webp on iOS) but lived in an unexported file, so
+  it could not be caught by type.
+* **Documented that `password` is ignored.** It is threaded from `PdfDocument.open*` through the wire, and neither
+  Android nor iOS ever reads it — upstream only honoured it in the web renderer. Encrypted documents simply fail to
+  open. The parameter is kept for source compatibility with `pdfx`.
 * **Regenerated the pigeon bridge with pigeon 27.** pigeon 4.2.14 could only emit Java (Android) and Obj-C (iOS), so
   the fork carried 1479 lines of generated `Pigeon.java` plus a hand-written `Messages.swift` — a manual translation
   of the Obj-C output that pigeon could no longer regenerate. Pigeon 27 emits Kotlin, Swift and Dart natively from the

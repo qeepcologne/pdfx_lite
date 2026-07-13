@@ -528,12 +528,16 @@ data class RenderPageMessage (
   }
 }
 
-/** Generated class from Pigeon that represents data sent in messages. */
+/**
+ * Android and iOS both render to a temp file; the in-memory `data` field this
+ * carried upstream served the web/windows renderers and is gone with them.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
 data class RenderPageReply (
   val width: Long? = null,
   val height: Long? = null,
-  val path: String? = null,
-  val data: ByteArray? = null
+  val path: String? = null
 )
  {
   companion object {
@@ -541,8 +545,7 @@ data class RenderPageReply (
       val width = pigeonVar_list[0] as Long?
       val height = pigeonVar_list[1] as Long?
       val path = pigeonVar_list[2] as String?
-      val data = pigeonVar_list[3] as ByteArray?
-      return RenderPageReply(width, height, path, data)
+      return RenderPageReply(width, height, path)
     }
   }
   fun toList(): List<Any?> {
@@ -550,7 +553,6 @@ data class RenderPageReply (
       width,
       height,
       path,
-      data,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -561,7 +563,7 @@ data class RenderPageReply (
       return true
     }
     val other = other as RenderPageReply
-    return PigeonPigeonUtils.deepEquals(this.width, other.width) && PigeonPigeonUtils.deepEquals(this.height, other.height) && PigeonPigeonUtils.deepEquals(this.path, other.path) && PigeonPigeonUtils.deepEquals(this.data, other.data)
+    return PigeonPigeonUtils.deepEquals(this.width, other.width) && PigeonPigeonUtils.deepEquals(this.height, other.height) && PigeonPigeonUtils.deepEquals(this.path, other.path)
   }
 
   override fun hashCode(): Int {
@@ -569,11 +571,10 @@ data class RenderPageReply (
     result = 31 * result + PigeonPigeonUtils.deepHash(this.width)
     result = 31 * result + PigeonPigeonUtils.deepHash(this.height)
     result = 31 * result + PigeonPigeonUtils.deepHash(this.path)
-    result = 31 * result + PigeonPigeonUtils.deepHash(this.data)
     return result
   }
   override fun toString(): String {
-    return "RenderPageReply(width=$width, height=$height, path=$path, data=${data?.contentToString()})"
+    return "RenderPageReply(width=$width, height=$height, path=$path)"
   }
 }
 

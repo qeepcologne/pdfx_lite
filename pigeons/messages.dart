@@ -56,11 +56,12 @@ class RenderPageMessage {
   bool? forPrint;
 }
 
+/// Android and iOS both render to a temp file; the in-memory `data` field this
+/// carried upstream served the web/windows renderers and is gone with them.
 class RenderPageReply {
   int? width;
   int? height;
   String? path;
-  Uint8List? data;
 }
 
 class RegisterTextureReply {

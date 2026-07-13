@@ -1,7 +1,6 @@
 package io.scer.pdfx.utils
 
 import android.graphics.Bitmap
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -20,14 +19,4 @@ fun Bitmap.toFile(file: File, format: Int, quality: Int = 100): File {
     stream.flush()
     stream.close()
     return file
-}
-
-/**
- * Convert bitmap to byte array using ByteBuffer.
- */
-fun Bitmap.toByteArray(format: Int): ByteArray {
-    val stream = ByteArrayOutputStream()
-    val compressFormat = parseCompressFormat(format)
-    this.compress(compressFormat, 100, stream)
-    return stream.toByteArray()
 }

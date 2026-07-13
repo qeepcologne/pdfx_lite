@@ -8,7 +8,7 @@ import 'package:pdfx_lite/src/renderer/interfaces/page.dart';
 import 'package:pdfx_lite/src/viewer/base/base_pdf_builders.dart';
 import 'package:pdfx_lite/src/viewer/base/base_pdf_controller.dart';
 import 'package:pdfx_lite/src/viewer/interactive_viewer.dart';
-import 'package:pdfx_lite/src/viewer/wrappers/pdf_texture.dart';
+import 'package:pdfx_lite/src/viewer/pdf_texture.dart';
 import 'package:vector_math/vector_math_64.dart' as math64;
 
 export 'package:pdfx_lite/src/viewer/pdf_page_image_provider.dart';

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data' show Uint8List;
 
-import 'package:pdfx_lite/src/renderer/has_pdf_support.dart';
 import 'package:pdfx_lite/src/renderer/interfaces/platform.dart';
 
 import 'page.dart';
@@ -32,28 +31,25 @@ abstract class PdfDocument {
   Future<void> close();
 
   /// Opening the specified file.
-  /// For Web, [filePath] can be relative path from `index.html` or any
-  /// arbitrary URL but it may be restricted by CORS.
-  /// `password supported only for web!`
-  static Future<PdfDocument> openFile(String filePath, {String? password}) {
-    assertHasPdfSupport();
-    return PdfxPlatform.instance.openFile(filePath, password: password);
-  }
+  ///
+  /// [password] is accepted for source compatibility with `pdfx` but is
+  /// ignored: it was only ever honoured by the web renderer. Encrypted
+  /// documents fail to open on Android and iOS.
+  static Future<PdfDocument> openFile(String filePath, {String? password}) =>
+      PdfxPlatform.instance.openFile(filePath, password: password);
 
   /// Opening the specified asset.
-  /// `password supported only for web!`
-  static Future<PdfDocument> openAsset(String name, {String? password}) {
-    assertHasPdfSupport();
-    return PdfxPlatform.instance.openAsset(name, password: password);
-  }
+  ///
+  /// [password] is ignored — see [openFile].
+  static Future<PdfDocument> openAsset(String name, {String? password}) =>
+      PdfxPlatform.instance.openAsset(name, password: password);
 
   /// Opening the PDF on memory.
-  /// `password supported only for web!`
+  ///
+  /// [password] is ignored — see [openFile].
   static Future<PdfDocument> openData(FutureOr<Uint8List> data,
-      {String? password}) {
-    assertHasPdfSupport();
-    return PdfxPlatform.instance.openData(data, password: password);
-  }
+          {String? password}) =>
+      PdfxPlatform.instance.openData(data, password: password);
 
   /// Get page object. The first page is 1.
   Future<PdfPage> getPage(
@@ -72,17 +68,7 @@ abstract class PdfDocument {
       '$runtimeType{document: $sourceName, id: $id, pagesCount: $pagesCount}';
 }
 
-Future<void> assertHasPdfSupport() async {
-  if (!await hasPdfSupport()) throw PlatformNotSupportedException();
-}
-
 class PdfDocumentAlreadyClosedException implements Exception {
   @override
   String toString() => '$runtimeType: Document already closed';
-}
-
-class PlatformNotSupportedException implements Exception {
-  @override
-  String toString() => '$runtimeType: Actual platform not supported by '
-      'it method, try use another';
 }

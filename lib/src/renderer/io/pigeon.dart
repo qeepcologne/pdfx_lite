@@ -504,12 +504,13 @@ class RenderPageMessage {
   }
 }
 
+/// Android and iOS both render to a temp file; the in-memory `data` field this
+/// carried upstream served the web/windows renderers and is gone with them.
 class RenderPageReply {
   RenderPageReply({
     this.width,
     this.height,
     this.path,
-    this.data,
   });
 
   int? width;
@@ -518,14 +519,11 @@ class RenderPageReply {
 
   String? path;
 
-  Uint8List? data;
-
   List<Object?> _toList() {
     return <Object?>[
       width,
       height,
       path,
-      data,
     ];
   }
 
@@ -538,7 +536,6 @@ class RenderPageReply {
       width: result[0] as int?,
       height: result[1] as int?,
       path: result[2] as String?,
-      data: result[3] as Uint8List?,
     );
   }
 
@@ -551,7 +548,7 @@ class RenderPageReply {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(width, other.width) && _deepEquals(height, other.height) && _deepEquals(path, other.path) && _deepEquals(data, other.data);
+    return _deepEquals(width, other.width) && _deepEquals(height, other.height) && _deepEquals(path, other.path);
   }
 
   @override
@@ -560,7 +557,7 @@ class RenderPageReply {
 
   @override
   String toString() {
-    return 'RenderPageReply(width: $width, height: $height, path: $path, data: $data)';
+    return 'RenderPageReply(width: $width, height: $height, path: $path)';
   }
 }
 

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
-import 'package:pdfx_lite/src/renderer/get_pixels/main.dart';
+import 'package:pdfx_lite/src/renderer/get_pixels.dart';
 import 'package:pdfx_lite/src/renderer/interfaces/document.dart';
 import 'package:pdfx_lite/src/renderer/interfaces/page.dart';
 import 'package:pdfx_lite/src/renderer/interfaces/platform.dart';
