@@ -32,24 +32,18 @@ abstract class PdfDocument {
 
   /// Opening the specified file.
   ///
-  /// [password] is accepted for source compatibility with `pdfx` but is
-  /// ignored: it was only ever honoured by the web renderer. Encrypted
-  /// documents fail to open on Android and iOS.
-  static Future<PdfDocument> openFile(String filePath, {String? password}) =>
-      PdfxPlatform.instance.openFile(filePath, password: password);
+  /// Encrypted documents are not supported: upstream's `password` parameter
+  /// was only ever honoured by the web renderer, so it is gone.
+  static Future<PdfDocument> openFile(String filePath) =>
+      PdfxPlatform.instance.openFile(filePath);
 
   /// Opening the specified asset.
-  ///
-  /// [password] is ignored — see [openFile].
-  static Future<PdfDocument> openAsset(String name, {String? password}) =>
-      PdfxPlatform.instance.openAsset(name, password: password);
+  static Future<PdfDocument> openAsset(String name) =>
+      PdfxPlatform.instance.openAsset(name);
 
   /// Opening the PDF on memory.
-  ///
-  /// [password] is ignored — see [openFile].
-  static Future<PdfDocument> openData(FutureOr<Uint8List> data,
-          {String? password}) =>
-      PdfxPlatform.instance.openData(data, password: password);
+  static Future<PdfDocument> openData(FutureOr<Uint8List> data) =>
+      PdfxPlatform.instance.openData(data);
 
   /// Get page object. The first page is 1.
   Future<PdfPage> getPage(

@@ -184,86 +184,76 @@ private func nilOrValue<T>(_ value: Any?) -> T? {
 }
 
 
-/// Regenerate all three sides with:
-///   dart run pigeon --input pigeons/messages.dart
+/// No `password` field: only the web renderer ever honoured one. Android and
+/// iOS never read it, so an encrypted document fails to open regardless.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct OpenDataMessage: Hashable, CustomStringConvertible {
   var data: FlutterStandardTypedData? = nil
-  var password: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> OpenDataMessage? {
     let data: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[0])
-    let password: String? = nilOrValue(pigeonVar_list[1])
 
     return OpenDataMessage(
-      data: data,
-      password: password
+      data: data
     )
   }
   func toList() -> [Any?] {
     return [
-      data,
-      password,
+      data
     ]
   }
   static func == (lhs: OpenDataMessage, rhs: OpenDataMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return PigeonPigeonInternal.deepEquals(lhs.data, rhs.data) && PigeonPigeonInternal.deepEquals(lhs.password, rhs.password)
+    return PigeonPigeonInternal.deepEquals(lhs.data, rhs.data)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("OpenDataMessage")
     PigeonPigeonInternal.deepHash(value: data, hasher: &hasher)
-    PigeonPigeonInternal.deepHash(value: password, hasher: &hasher)
   }
 
   public var description: String {
-    return "OpenDataMessage(data: \(String(describing: data)), password: \(String(describing: password)))"
+    return "OpenDataMessage(data: \(String(describing: data)))"
   }
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
 struct OpenPathMessage: Hashable, CustomStringConvertible {
   var path: String? = nil
-  var password: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> OpenPathMessage? {
     let path: String? = nilOrValue(pigeonVar_list[0])
-    let password: String? = nilOrValue(pigeonVar_list[1])
 
     return OpenPathMessage(
-      path: path,
-      password: password
+      path: path
     )
   }
   func toList() -> [Any?] {
     return [
-      path,
-      password,
+      path
     ]
   }
   static func == (lhs: OpenPathMessage, rhs: OpenPathMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return PigeonPigeonInternal.deepEquals(lhs.path, rhs.path) && PigeonPigeonInternal.deepEquals(lhs.password, rhs.password)
+    return PigeonPigeonInternal.deepEquals(lhs.path, rhs.path)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("OpenPathMessage")
     PigeonPigeonInternal.deepHash(value: path, hasher: &hasher)
-    PigeonPigeonInternal.deepHash(value: password, hasher: &hasher)
   }
 
   public var description: String {
-    return "OpenPathMessage(path: \(String(describing: path)), password: \(String(describing: password)))"
+    return "OpenPathMessage(path: \(String(describing: path)))"
   }
 }
 

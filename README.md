@@ -36,6 +36,18 @@ Includes 2 APIs, unchanged from upstream:
 
 Everything else — the public API, the pinch/simple viewers, the Android and iOS native renderers — is upstream's.
 
+### Bug fixes not in upstream
+
+- **Cropped rendering on Android was broken.** `renderPage` took the crop width from the *render* width instead of
+  `cropWidth`, so a crop always spanned the full width — and because the native code then calls
+  `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)`, which requires `cropX + cropW <= bitmap.width`, any crop with
+  `cropX > 0` threw `IllegalArgumentException: x + width must be <= bitmap.width()`, surfacing in Dart as
+  `PlatformException(pdf_renderer, Unexpected error, …)`. So `render(cropRect: …)` did not merely return the wrong
+  region on Android, it failed outright whenever the crop was not flush to the left edge. iOS was always correct.
+  Still broken in `pdfx` as of 2.9.3.
+- **`renderPage` on iOS called its completion twice** on a render error (once in the `catch`, once again in the
+  trailing `main.async`), and reported failure as `completion(nil, nil)` — a null reply with no error.
+
 ## Getting started
 
 ```yaml
@@ -62,6 +74,17 @@ PdfViewPinch(controller: controller);
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
 2. Remove the `pdf.js` `<script>` tags from `web/index.html` — they existed only for the web renderer.
 3. Guard any PDF viewing on web (`kIsWeb`) and fall back to the browser's native PDF viewer.
+4. **Drop the `password:` argument** from `PdfDocument.openFile` / `openAsset` / `openData` — it no longer exists:
+
+   ```diff
+   - PdfDocument.openAsset('assets/doc.pdf', password: 'secret')
+   + PdfDocument.openAsset('assets/doc.pdf')
+   ```
+
+   Upstream accepted it on all platforms but only the **web** renderer ever honoured it. On Android and iOS it was
+   sent over the channel and silently ignored, so an encrypted PDF failed to open anyway (`Can't create PDF renderer`
+   on Android, `Invalid PDF format` on iOS). Removing it turns a silent no-op into a compile error. If you need
+   encrypted PDFs on mobile, this package cannot open them — and neither could `pdfx`.
 
 ## Upstream
 

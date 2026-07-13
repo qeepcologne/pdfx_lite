@@ -97,22 +97,18 @@ int _deepHash(Object? value) {
 }
 
 
-/// Regenerate all three sides with:
-///   dart run pigeon --input pigeons/messages.dart
+/// No `password` field: only the web renderer ever honoured one. Android and
+/// iOS never read it, so an encrypted document fails to open regardless.
 class OpenDataMessage {
   OpenDataMessage({
     this.data,
-    this.password,
   });
 
   Uint8List? data;
 
-  String? password;
-
   List<Object?> _toList() {
     return <Object?>[
       data,
-      password,
     ];
   }
 
@@ -123,7 +119,6 @@ class OpenDataMessage {
     result as List<Object?>;
     return OpenDataMessage(
       data: result[0] as Uint8List?,
-      password: result[1] as String?,
     );
   }
 
@@ -136,7 +131,7 @@ class OpenDataMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(data, other.data) && _deepEquals(password, other.password);
+    return _deepEquals(data, other.data);
   }
 
   @override
@@ -145,24 +140,20 @@ class OpenDataMessage {
 
   @override
   String toString() {
-    return 'OpenDataMessage(data: $data, password: $password)';
+    return 'OpenDataMessage(data: $data)';
   }
 }
 
 class OpenPathMessage {
   OpenPathMessage({
     this.path,
-    this.password,
   });
 
   String? path;
 
-  String? password;
-
   List<Object?> _toList() {
     return <Object?>[
       path,
-      password,
     ];
   }
 
@@ -173,7 +164,6 @@ class OpenPathMessage {
     result as List<Object?>;
     return OpenPathMessage(
       path: result[0] as String?,
-      password: result[1] as String?,
     );
   }
 
@@ -186,7 +176,7 @@ class OpenPathMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(path, other.path) && _deepEquals(password, other.password);
+    return _deepEquals(path, other.path);
   }
 
   @override
@@ -195,7 +185,7 @@ class OpenPathMessage {
 
   @override
   String toString() {
-    return 'OpenPathMessage(path: $path, password: $password)';
+    return 'OpenPathMessage(path: $path)';
   }
 }
 

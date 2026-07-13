@@ -10,14 +10,14 @@ import 'package:pigeon/pigeon.dart';
   ),
   swiftOut: 'ios/pdfx_lite/Sources/pdfx_lite/Pigeon.g.swift',
 ))
+/// No `password` field: only the web renderer ever honoured one. Android and
+/// iOS never read it, so an encrypted document fails to open regardless.
 class OpenDataMessage {
   Uint8List? data;
-  String? password;
 }
 
 class OpenPathMessage {
   String? path;
-  String? password;
 }
 
 class OpenReply {

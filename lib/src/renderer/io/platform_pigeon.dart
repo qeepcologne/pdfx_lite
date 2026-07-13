@@ -23,32 +23,22 @@ class PdfxPlatformPigeon extends PdfxPlatform {
 
   /// Open PDF document from filesystem path
   @override
-  Future<PdfDocument> openFile(String filePath, {String? password}) async {
-    return _open(
-      await _api.openDocumentFile(OpenPathMessage()
-        ..path = filePath
-        ..password = password),
-      'file:$filePath',
-    );
-  }
+  Future<PdfDocument> openFile(String filePath) async => _open(
+        await _api.openDocumentFile(OpenPathMessage()..path = filePath),
+        'file:$filePath',
+      );
 
   /// Open PDF document from application assets
   @override
-  Future<PdfDocument> openAsset(String name, {String? password}) async => _open(
-        await _api.openDocumentAsset(OpenPathMessage()
-          ..path = name
-          ..password = password),
+  Future<PdfDocument> openAsset(String name) async => _open(
+        await _api.openDocumentAsset(OpenPathMessage()..path = name),
         'asset:$name',
       );
 
   /// Open PDF file from memory (Uint8List)
   @override
-  Future<PdfDocument> openData(FutureOr<Uint8List> data,
-          {String? password}) async =>
-      _open(
-        await _api.openDocumentData(OpenDataMessage()
-          ..data = await data
-          ..password = password),
+  Future<PdfDocument> openData(FutureOr<Uint8List> data) async => _open(
+        await _api.openDocumentData(OpenDataMessage()..data = await data),
         'memory:binary',
       );
 }

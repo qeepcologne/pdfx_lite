@@ -16,9 +16,11 @@
     `viewer/wrappers/pdf_texture.dart` + `implementations/pdf_texture_native.dart` became `viewer/pdf_texture.dart`.
 * `PdfNotSupportException` is now exported. It is thrown to callers (webp on iOS) but lived in an unexported file, so
   it could not be caught by type.
-* **Documented that `password` is ignored.** It is threaded from `PdfDocument.open*` through the wire, and neither
-  Android nor iOS ever reads it — upstream only honoured it in the web renderer. Encrypted documents simply fail to
-  open. The parameter is kept for source compatibility with `pdfx`.
+* **Breaking: removed the `password` parameter** from `PdfDocument.openFile` / `openAsset` / `openData`, and the
+  matching fields from the pigeon schema. Upstream accepted it on every platform but only the **web** renderer ever
+  honoured it: on Android and iOS it was sent over the channel and silently ignored, so encrypted documents failed to
+  open anyway (`Can't create PDF renderer` / `Invalid PDF format`). Removing it turns a silent no-op into a compile
+  error. See "Migrating from pdfx" in the README.
 * **Regenerated the pigeon bridge with pigeon 27.** pigeon 4.2.14 could only emit Java (Android) and Obj-C (iOS), so
   the fork carried 1479 lines of generated `Pigeon.java` plus a hand-written `Messages.swift` — a manual translation
   of the Obj-C output that pigeon could no longer regenerate. Pigeon 27 emits Kotlin, Swift and Dart natively from the

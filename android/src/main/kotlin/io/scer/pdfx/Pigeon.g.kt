@@ -193,27 +193,24 @@ class FlutterError (
 ) : RuntimeException()
 
 /**
- * Regenerate all three sides with:
- *   dart run pigeon --input pigeons/messages.dart
+ * No `password` field: only the web renderer ever honoured one. Android and
+ * iOS never read it, so an encrypted document fails to open regardless.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class OpenDataMessage (
-  val data: ByteArray? = null,
-  val password: String? = null
+  val data: ByteArray? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): OpenDataMessage {
       val data = pigeonVar_list[0] as ByteArray?
-      val password = pigeonVar_list[1] as String?
-      return OpenDataMessage(data, password)
+      return OpenDataMessage(data)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       data,
-      password,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -224,37 +221,33 @@ data class OpenDataMessage (
       return true
     }
     val other = other as OpenDataMessage
-    return PigeonPigeonUtils.deepEquals(this.data, other.data) && PigeonPigeonUtils.deepEquals(this.password, other.password)
+    return PigeonPigeonUtils.deepEquals(this.data, other.data)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + PigeonPigeonUtils.deepHash(this.data)
-    result = 31 * result + PigeonPigeonUtils.deepHash(this.password)
     return result
   }
   override fun toString(): String {
-    return "OpenDataMessage(data=${data?.contentToString()}, password=$password)"
+    return "OpenDataMessage(data=${data?.contentToString()})"
   }
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class OpenPathMessage (
-  val path: String? = null,
-  val password: String? = null
+  val path: String? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): OpenPathMessage {
       val path = pigeonVar_list[0] as String?
-      val password = pigeonVar_list[1] as String?
-      return OpenPathMessage(path, password)
+      return OpenPathMessage(path)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       path,
-      password,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -265,17 +258,16 @@ data class OpenPathMessage (
       return true
     }
     val other = other as OpenPathMessage
-    return PigeonPigeonUtils.deepEquals(this.path, other.path) && PigeonPigeonUtils.deepEquals(this.password, other.password)
+    return PigeonPigeonUtils.deepEquals(this.path, other.path)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + PigeonPigeonUtils.deepHash(this.path)
-    result = 31 * result + PigeonPigeonUtils.deepHash(this.password)
     return result
   }
   override fun toString(): String {
-    return "OpenPathMessage(path=$path, password=$password)"
+    return "OpenPathMessage(path=$path)"
   }
 }
 

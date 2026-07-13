@@ -15,11 +15,11 @@ abstract class PdfxPlatform {
   /// The instance of [PdfxPlatform] to use.
   static final PdfxPlatform instance = PdfxPlatformPigeon();
 
-  Future<PdfDocument> openFile(String filePath, {String? password});
+  Future<PdfDocument> openFile(String filePath);
 
-  Future<PdfDocument> openAsset(String name, {String? password});
+  Future<PdfDocument> openAsset(String name);
 
-  Future<PdfDocument> openData(FutureOr<Uint8List> data, {String? password});
+  Future<PdfDocument> openData(FutureOr<Uint8List> data);
 }
 
 class PdfNotSupportException implements Exception {
