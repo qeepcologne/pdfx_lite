@@ -35,7 +35,8 @@ PdfViewPinch(controller: controller);
    falling back to the browser's native viewer.
 3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
    are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
-   failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
+   failed to open anyway), and `hasPdfSupport()` was hardcoded `true`. An encrypted PDF now throws a catchable
+   `PdfPasswordProtectedException` rather than failing as "unknown error"; opening one still is not supported.
 4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
    the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
 
@@ -59,5 +60,5 @@ PdfViewPinch(controller: controller);
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
 | Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta`, `synchronized`, `vector_math` remain |
 
-Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, and three more. See the
-[CHANGELOG](CHANGELOG.md).
+Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race, and
+more. See the [CHANGELOG](CHANGELOG.md).
