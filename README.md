@@ -71,21 +71,16 @@ PdfViewPinch(controller: controller);
 ## Migrating from pdfx
 
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
-2. Remove the `pdf.js` `<script>` tags from `web/index.html` — they existed only for the web renderer.
-3. Guard any PDF viewing on web (`kIsWeb`) and fall back to the browser's native PDF viewer.
-4. **Drop the `password:` argument** from `PdfDocument.openFile` / `openAsset` / `openData` — it no longer exists:
+2. **Web:** drop the `pdf.js` `<script>` tags from `web/index.html`, and guard any PDF viewing behind `kIsWeb`,
+   falling back to the browser's native viewer.
+3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
+   are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
+   failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
 
    ```diff
    - PdfDocument.openAsset('assets/doc.pdf', password: 'secret')
    + PdfDocument.openAsset('assets/doc.pdf')
    ```
-
-   Upstream accepted it on all platforms but only the **web** renderer ever honoured it. On Android and iOS it was
-   sent over the channel and silently ignored, so an encrypted PDF failed to open anyway (`Can't create PDF renderer`
-   on Android, `Invalid PDF format` on iOS). Removing it turns a silent no-op into a compile error. If you need
-   encrypted PDFs on mobile, this package cannot open them — and neither could `pdfx`.
-5. **Drop `hasPdfSupport()`** — it no longer exists. It answered a question only the web renderer could fail: Android
-   and iOS both render PDFs natively, so it was hardcoded `true`. Delete the check and the branch behind it.
 
 ## Upstream
 
