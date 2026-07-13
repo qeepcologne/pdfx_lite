@@ -6,9 +6,10 @@ Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replac
 
 > **No tests.** The 8 upstream ones drove the method-channel implementation, which is gone.
 
-Includes 2 APIs, unchanged from upstream:
-- `renderer` — work with a PDF document, its pages, render a page to an image
-- `viewer` — Flutter widgets & controllers to show the render result
+Includes the same 2 APIs as upstream:
+- `renderer` — work with a PDF document, its pages, render a page to an image. Slightly reduced: `password`,
+  `hasPdfSupport()` and `RgbaData` are gone (see *Migrating from pdfx*).
+- `viewer` — Flutter widgets & controllers to show the render result. Unchanged.
 
 ## What changed vs upstream
 
