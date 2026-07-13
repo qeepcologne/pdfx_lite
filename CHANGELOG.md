@@ -47,16 +47,7 @@ history, kept for reference.
   (`swift-tools-version: 6.2`, needs Xcode 26+).
 * **Dependencies dropped:** `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`,
   `plugin_platform_interface`. Only `meta`, `photo_view`, `synchronized` and `vector_math` remain.
-
-### Notes
-
-* ⚠️ **iOS has not been compiled.** Both the pigeon 27 port and the Swift 6 migration were written without Xcode —
-  reviewed, not built. If strict concurrency fights back, `.swiftLanguageMode(.v5)` in `Package.swift` is the escape
-  hatch. Android is built and driven on a real device.
-* **No tests.** All 8 upstream tests drove the method-channel implementation, which no longer exists.
 * Added a runnable `example/` app (upstream's `example/main.dart` was a snippet, not a buildable project).
-* Still MIT. A fork copyright line sits alongside upstream's, which stays — this is a derivative work. `AUTHORS` was
-  Flutter-template boilerplate and is folded into `LICENSE`.
 
 ## 2.9.2
 
