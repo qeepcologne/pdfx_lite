@@ -1,8 +1,8 @@
 # pdfx_lite
 
-Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replacement for [`pdfx`](https://github.com/ScerIO/packages.flutter/tree/main/packages/pdfx), with the Web, macOS and Windows renderers removed.
+Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replacement for [`pdfx`](https://github.com/ScerIO/packages.flutter/tree/main/packages/pdfx), forked from [ScerIO/packages.flutter](https://github.com/ScerIO/packages.flutter) at `pdfx` 2.9.2, with the Web, macOS and Windows renderers removed.
 
-**Purpose:** minimal and legacy-free, for **current toolchains only** — no CocoaPods (SPM only), no `pdf.js`, no CMake, and built against the latest Flutter, AGP, Gradle, Android SDK and Xcode rather than older ones. If you need Web, desktop, or CocoaPods, use the upstream package instead.
+**Purpose:** minimal and legacy-free, for **current toolchains only** — no CocoaPods (SPM only), no `pdf.js`, no CMake, and built against the latest Flutter, AGP, Gradle, Android SDK and Xcode rather than older ones. If you need Web, desktop, or CocoaPods, use the upstream package instead. Fixes to the shared renderer/viewer code belong upstream, not here.
 
 > **No tests.** The 8 upstream ones drove the method-channel implementation, which is gone.
 
@@ -69,8 +69,3 @@ PdfViewPinch(controller: controller);
 3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
    are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
    failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
-
-## Upstream
-
-Forked from [ScerIO/packages.flutter](https://github.com/ScerIO/packages.flutter) at `pdfx` 2.9.2. Bug fixes to the
-shared renderer/viewer code belong upstream; this fork exists only to drop platforms and modernise the toolchain.
