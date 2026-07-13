@@ -15,6 +15,13 @@
   - `pigeon: ^27.1.1` is a **dev** dependency — dev deps are not resolved transitively, so nothing reaches consumers.
     The old analyzer conflict is gone: pigeon 4 pinned `analyzer` 4.x and Dart `<3.0.0`; pigeon 27 wants
     `analyzer >=10 <13`, which resolves against our `sdk: ^3.12.0`.
+* **Fixed cropped rendering on Android** (upstream bug, still present in `pdfx`). `Messages.kt` `renderPage` took the
+  crop width from `message.width` instead of `message.cropWidth`, so the crop always spanned the full render width.
+  Worse, `Page.render` then calls `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)`, which requires
+  `cropX + cropW <= bitmap.width` — so any crop with `cropX > 0` threw `IllegalArgumentException: x + width must be
+  <= bitmap.width()`, surfacing in Dart as `PlatformException(pdf_renderer, Unexpected error, ...)`. iOS was always
+  correct. Verified on device: `render(cropRect: Rect.fromLTWH(150, 0, 150, 200))` on a 300x400 page now returns a
+  150x200 image of the correct region, where it previously threw.
 * Added a real `example/` host app (the old `example/main.dart` was a snippet, not a buildable project) with a 2-page
   `assets/hello.pdf`, so the plugin can actually be built and driven on a device.
 * Android: pinned `compileOptions` and the Kotlin `jvmTarget` to 17. Neither was declared, so javac defaulted to 11

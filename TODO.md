@@ -12,21 +12,15 @@ Open issues for `pdfx_lite`, forked from `pdfx` 2.9.3 (2026-07-10). See `CHANGEL
 
 ## Android
 
-- [ ] `Messages.kt` `renderPage` computes the crop width from the wrong field:
-
-      val cropW = if (crop) message.width?.toInt() ?: 0 else 0   // should be message.cropWidth
-
-      So a crop always spans the full render width; `cropWidth` is sent over the wire and ignored. iOS uses
-      `cropWidth` correctly, so the two platforms disagree. Inherited from upstream and **preserved verbatim** through
-      the pigeon-27 port to keep that diff behaviour-preserving. Fix separately, and send it upstream — this is in the
-      shared renderer logic, not the fork's own code.
 - [ ] `namespace` is `io.scer.pdf_renderer` while the plugin package is `io.scer.pdfx`. Left as upstream had it: the
       library ships no resources, so the namespace only names the manifest package, and renaming risks the plugin
       registrant for no gain. Revisit only if AGP starts caring.
 
 ## Repo
 
-- [ ] Create `qeepcologne/pdfx_lite` on GitHub and push (7 local commits).
+- [ ] Create `qeepcologne/pdfx_lite` on GitHub and push (8 local commits).
+- [ ] Report the Android crop bug (`cropW` read from `width` instead of `cropWidth`, fixed here) upstream against
+      `ScerIO/packages.flutter` — it is still broken in `pdfx` and affects every Android user of `render(cropRect:)`.
 
 ## Won't do
 
