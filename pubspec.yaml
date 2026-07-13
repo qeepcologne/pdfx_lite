@@ -14,7 +14,8 @@ dependencies:
   photo_view: ^0.15.0
   synchronized: ^3.4.1
   #`vector_math_64` (Quad/Vector3/Matrix4) for the pinch viewer's transform maths. Flutter pins this to 2.2.0.
-  vector_math: ^2.1.4
+  #2.2.0 is the floor, not a preference: `translateByDouble`/`scaleByDouble` do not exist before it.
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test:
