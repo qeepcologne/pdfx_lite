@@ -18,8 +18,6 @@ Includes 2 APIs, unchanged from upstream:
 |---|---|---|
 | Platforms | Android, iOS, macOS, Windows, Web | Android, iOS |
 | iOS integration | CocoaPods podspec + SPM | **SPM only** |
-| Web renderer | `pdf.js` (needs CDN scripts in `index.html`) | **removed** |
-| Desktop | macOS (podspec), Windows (CMake) | **removed** |
 | Platform channel | pigeon 4 (mobile) + method channel (web/Windows) | **pigeon 27 only** — generated Kotlin + Swift + Dart |
 | Generated native bridge | 1479 lines of **Java** + a hand-translated `Messages.swift` | **generated from one schema**, no Java |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
