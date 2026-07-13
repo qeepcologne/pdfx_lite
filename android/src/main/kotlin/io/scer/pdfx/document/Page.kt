@@ -7,24 +7,10 @@ import java.io.File
 
 class Page(
     val id: String,
-    private val documentId: String,
     val pageRenderer: PdfRenderer.Page
     ) {
-    /** Page number in document */
-    private val number: Int get() = pageRenderer.index
-
     val width: Int get() = pageRenderer.width
     val height: Int get() = pageRenderer.height
-
-    val infoMap: Map<String, Any>
-        get() =
-            mapOf(
-                "documentId" to documentId,
-                "id" to id,
-                "pageNumber" to number,
-                "width" to width,
-                "height" to height
-            )
 
     fun close() {
         pageRenderer.close()
@@ -63,14 +49,6 @@ class Page(
         val height: Int,
         val path: String
     ) {
-        val toMap: Map<String, Any>
-            get() =
-                mapOf(
-                    "width" to width,
-                    "height" to height,
-                    "path" to path
-                )
-
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false

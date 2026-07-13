@@ -143,7 +143,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 }
             } else {
                 val pageRenderer = documents.get(documentId).openPage(pageNumber)
-                val page = pages.register(documentId, pageRenderer)
+                val page = pages.register(pageRenderer)
                 GetPageReply(
                     id = page.id,
                     width = page.width.toDouble(),

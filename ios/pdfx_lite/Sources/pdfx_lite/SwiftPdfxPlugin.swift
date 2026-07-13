@@ -98,7 +98,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
                 return completion(.failure(renderError("Unexpected error: renderer is nil.")))
             }
 
-            let page = pages.register(documentId: documentId, renderer: renderer)
+            let page = pages.register(renderer: renderer)
             completion(.success(GetPageReply(
                 id: page.id,
                 width: page.width,
@@ -271,8 +271,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
 
 enum PdfRenderError : Error {
   case operationFailed(String)
-  case invalidArgument(String)
-  case notSupported(String)
 }
 
 /// `@unchecked Sendable`: Flutter calls `copyPixelBuffer` from its own raster thread while `updateTex` runs on the

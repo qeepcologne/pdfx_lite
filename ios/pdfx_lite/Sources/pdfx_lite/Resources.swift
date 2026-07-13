@@ -48,9 +48,9 @@ final class DocumentRepository: Repository<Document> {
 }
 
 final class PageRepository: Repository<Page> {
-    func register(documentId: String, renderer: CGPDFPage) -> Page {
+    func register(renderer: CGPDFPage) -> Page {
         let id = UUID().uuidString
-        let page = Page(id: id, documentId: documentId, renderer: renderer)
+        let page = Page(id: id, renderer: renderer)
         set(id: id, item: page)
         return page
     }

@@ -9,9 +9,9 @@ class PageRepository : Repository<Page>() {
      * Register page in repository
      * @returns page id
      */
-    fun register(documentId: String, pageRenderer: PdfRenderer.Page): Page {
+    fun register(pageRenderer: PdfRenderer.Page): Page {
         val id = randomID
-        val page = Page(id, documentId, pageRenderer)
+        val page = Page(id, pageRenderer)
         set(id, page)
         return page
     }

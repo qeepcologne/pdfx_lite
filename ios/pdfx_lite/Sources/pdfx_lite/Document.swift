@@ -28,21 +28,13 @@ final class Document: @unchecked Sendable {
 /// `@unchecked Sendable`: immutable, but wraps a `CGPDFPage`. `render` runs on the background render queue.
 final class Page: @unchecked Sendable {
     let id: String
-    let documentId: String
     let renderer: CGPDFPage
     let boxRect: CGRect
 
-    init(id: String, documentId: String, renderer: CGPDFPage) {
+    init(id: String, renderer: CGPDFPage) {
         self.id = id
-        self.documentId = documentId
         self.renderer = renderer
         self.boxRect = renderer.getBoxRect(.mediaBox)
-    }
-
-    var number: Int {
-        get {
-            return renderer.pageNumber
-        }
     }
 
     var width: Double {

@@ -10,12 +10,6 @@ class Document (
 ) {
     val pagesCount: Int get() = documentRenderer.pageCount
 
-    val infoMap: Map<String, Any> get() =
-        mapOf(
-            "id" to id,
-            "pagesCount" to pagesCount
-        )
-
     fun close() {
         documentRenderer.close()
         fileDescriptor.close()
