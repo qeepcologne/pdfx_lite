@@ -36,11 +36,8 @@ PdfViewPinch(controller: controller);
 3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
    are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
    failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
-4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone; it
-   existed only to wrap `photo_view`, which is unmaintained. `PdfViewPinch` renders through a platform texture, zooms
-   and pages already, and is the viewer upstream itself recommends. If you need the image-backed behaviour, build it
-   from the renderer: `PdfPageImageProvider` is still exported, and a `PageView` of `InteractiveViewer`s is what
-   `photo_view` was doing for you.
+4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
+   the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
 
 ## What changed vs upstream
 
