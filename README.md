@@ -55,26 +55,5 @@ PdfViewPinch(controller: controller);
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |
 
-### Bug fixes not in upstream
-
-All still present in `pdfx` 2.9.2.
-
-Reported upstream, but unmerged — `pdfx` has had no release since 2.9.2 (June 2025):
-
-- **`PdfViewPinch(scrollDirection: Axis.horizontal)` threw and rendered a blank page** —
-  `Unsupported operation: Infinity or NaN toInt`, on every frame. The horizontal layout makes the document exactly as
-  tall as the viewport, so the scroll-progress divisor is always zero. Vertical scrolling hit it too whenever a
-  document was no taller than the viewport. ([#602](https://github.com/ScerIO/packages.flutter/pull/602),
-  [#604](https://github.com/ScerIO/packages.flutter/pull/604) — both describe only the vertical case)
-- **`PdfPage.render()` defaulted to a different format than every layer beneath it**, which also silently flipped the
-  background from transparent to white. ([#581](https://github.com/ScerIO/packages.flutter/pull/581))
-
-Not reported upstream — found here:
-
-- **Cropped rendering on Android.** `render(cropRect: …)` did not just return the wrong region — it **threw** for any
-  crop not flush to the left edge, because the crop width was read from the wrong field. iOS was always correct.
-- **iOS `renderPage` called its completion twice** on a render error, and signalled failure as a null reply with no error.
-- An unsynchronised **data race** in the iOS document/page repositories, and a **`CoroutineScope` leaked per render**
-  on Android.
-
-Details in the [CHANGELOG](CHANGELOG.md).
+Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, and three more. See the
+[CHANGELOG](CHANGELOG.md).
