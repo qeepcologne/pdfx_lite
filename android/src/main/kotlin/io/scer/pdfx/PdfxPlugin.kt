@@ -1,7 +1,5 @@
 package io.scer.pdfx
 
-import android.annotation.TargetApi
-import android.os.Build
 import androidx.annotation.NonNull
 import dev.flutter.pigeon.Pigeon
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -11,7 +9,6 @@ import io.scer.pdfx.resources.PageRepository
 /**
  * PdfxPlugin
  */
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 class PdfxPlugin : FlutterPlugin {
     private val documents = DocumentRepository()
     private val pages = PageRepository()

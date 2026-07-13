@@ -12,6 +12,8 @@
 * Android: minSdk 16 → 24, compileSdk 35 → 37, Gradle 8.10.2 → 9.6.1, kotlinx-coroutines 1.8.1 → 1.10.2.
   Dropped the `agpVersion < 9` compat guard (AGP 9's built-in Kotlin), the `sourceSets`/`compileOptions` blocks, and
   `gradle.properties` (`enableJetifier` is gone in AGP 9, `useAndroidX` is the default).
+* Android: dropped the `@TargetApi`/`@RequiresApi(LOLLIPOP)` annotations (and their now-unused `android.os.Build`
+  imports) from all six Kotlin sources. They gated on API 21, below the current `minSdk 24`.
 * iOS: deployment target 13.0 → 15.0. Stripped every `#if os(iOS)` / `#elseif os(macOS)` block from the Swift sources
   (incl. the whole `NSColor` extension) — the SPM package is iOS-only, so the macOS branches were unreachable.
 * **Breaking:** removed the exported `RgbaData` type. Nothing produced or consumed it once the web texture renderer

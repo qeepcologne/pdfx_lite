@@ -18,8 +18,6 @@ Open issues for `pdfx_lite`, forked from `pdfx` 2.9.3 (2026-07-10). See `CHANGEL
       changed across nine majors, so all three sides must regenerate together and `Messages.kt`, `Document.kt`,
       `Page.kt` and `SwiftPdfxPlugin.swift` must adapt to the new generated interfaces. **Do this after a successful
       build, not before.**
-- [ ] `PdfxPlugin.kt` is annotated `@TargetApi(Build.VERSION_CODES.LOLLIPOP)` — API 21, below the current `minSdk 24`.
-      Dead annotation.
 - [ ] `Pigeon.java` imports `androidx.annotation.NonNull` / `Nullable`, but `build.gradle.kts` declares no
       `androidx.annotation` dependency — it resolves transitively through the Flutter embedding. Latent break: declare
       it, or drop the annotations when the file is regenerated.

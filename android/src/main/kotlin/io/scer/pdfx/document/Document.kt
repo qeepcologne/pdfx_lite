@@ -1,11 +1,8 @@
 package io.scer.pdfx.document
 
-import android.annotation.TargetApi
 import android.graphics.pdf.PdfRenderer
-import android.os.Build
 import android.os.ParcelFileDescriptor
 
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 class Document (
     val id: String,
     private val documentRenderer: PdfRenderer,

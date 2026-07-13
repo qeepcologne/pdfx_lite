@@ -5,12 +5,10 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.pdf.PdfRenderer
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.util.SparseArray
 import android.view.Surface
-import androidx.annotation.RequiresApi
 import dev.flutter.pigeon.Pigeon
 import io.flutter.BuildConfig
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -31,7 +29,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                private val documents: DocumentRepository,
                private val pages: PageRepository) : Pigeon.PdfxApi {
