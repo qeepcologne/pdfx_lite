@@ -9,6 +9,34 @@ Includes the same 2 APIs as upstream:
   `hasPdfSupport()` and `RgbaData` are gone (see *Migrating from pdfx*).
 - `viewer` — Flutter widgets & controllers to show the render result. Unchanged.
 
+## Getting started
+
+```yaml
+dependencies:
+  pdfx_lite:
+    git:
+      url: https://github.com/qeepcologne/pdfx_lite.git
+```
+
+```dart
+import 'package:pdfx_lite/pdfx_lite.dart';
+
+final controller = PdfControllerPinch(
+  document: PdfDocument.openAsset('assets/hello.pdf'),
+);
+// ...
+PdfViewPinch(controller: controller);
+```
+
+## Migrating from pdfx
+
+1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
+2. **Web:** drop the `pdf.js` `<script>` tags from `web/index.html`, and guard any PDF viewing behind `kIsWeb`,
+   falling back to the browser's native viewer.
+3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
+   are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
+   failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
+
 ## What changed vs upstream
 
 | | pdfx | pdfx_lite |
@@ -39,31 +67,3 @@ All still present in `pdfx` 2.9.2:
   on Android.
 
 Details in the [CHANGELOG](CHANGELOG.md).
-
-## Getting started
-
-```yaml
-dependencies:
-  pdfx_lite:
-    git:
-      url: https://github.com/qeepcologne/pdfx_lite.git
-```
-
-```dart
-import 'package:pdfx_lite/pdfx_lite.dart';
-
-final controller = PdfControllerPinch(
-  document: PdfDocument.openAsset('assets/hello.pdf'),
-);
-// ...
-PdfViewPinch(controller: controller);
-```
-
-## Migrating from pdfx
-
-1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
-2. **Web:** drop the `pdf.js` `<script>` tags from `web/index.html`, and guard any PDF viewing behind `kIsWeb`,
-   falling back to the browser's native viewer.
-3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
-   are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
-   failed to open anyway), and `hasPdfSupport()` was hardcoded `true`.
