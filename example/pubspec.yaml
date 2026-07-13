@@ -1,0 +1,23 @@
+name: pdfx_lite_example
+description: Host app for pdfx_lite — exists to build and drive the plugin on a real device.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pdfx_lite:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/hello.pdf
