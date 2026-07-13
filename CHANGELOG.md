@@ -1,4 +1,8 @@
-## 2.9.3 (pdfx_lite fork)
+## 3.0.0
+
+First `pdfx_lite` release, forked from `pdfx` 2.9.3. **3.0.0, not 2.9.3:** the public API breaks (`password`,
+`hasPdfSupport()` and `RgbaData` are gone) and platforms are dropped, so it cannot claim compatibility with any `pdfx`
+release. Version numbers below this line are upstream `pdfx`'s history, kept for reference.
 
 * **iOS: Swift 6 language mode.** `Package.swift` moves to `swift-tools-version: 6.2` (**requires Xcode 26+**) with
   `.swiftLanguageMode(.v6)`. The tools version is a toolchain floor, not a feature gate — the language mode is equally
@@ -91,6 +95,9 @@
 * **Removed the test suite.** All 8 tests drove `PdfxPlatformMethodChannel`, which no longer exists. A pigeon-based
   suite has not been written — the fork currently ships with no tests.
 * Requires Dart ^3.12 / Flutter >=3.44.
+* Still MIT. Added a fork copyright line alongside upstream's, which stays — this is a derivative work. Dropped the
+  `AUTHORS` file: it was Flutter-template boilerplate (its header credited "the Flutter project") and carried no
+  legal weight; MIT asks for the copyright notice, which `LICENSE` now carries for both parties.
 
 ## 2.9.3
 
