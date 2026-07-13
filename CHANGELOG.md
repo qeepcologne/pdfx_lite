@@ -1,5 +1,24 @@
 ## 2.9.3 (pdfx_lite fork)
 
+* **Regenerated the pigeon bridge with pigeon 27.** pigeon 4.2.14 could only emit Java (Android) and Obj-C (iOS), so
+  the fork carried 1479 lines of generated `Pigeon.java` plus a hand-written `Messages.swift` — a manual translation
+  of the Obj-C output that pigeon could no longer regenerate. Pigeon 27 emits Kotlin, Swift and Dart natively from the
+  same `pigeons/messages.dart`, so all three sides are generated again from one schema:
+  - Deleted `android/src/main/java/` (the whole Java source set) and `ios/.../Messages.swift`; added the generated
+    `Pigeon.g.kt` and `Pigeon.g.swift`.
+  - `SwiftPdfxPlugin.swift` now sees native `Int64`/`Double`/`Bool` and `Result`-based completions instead of
+    `NSNumber`, `as! Int` force-casts and `AutoreleasingUnsafeMutablePointer<FlutterError?>`.
+  - `Messages.kt` implements the generated Kotlin `PdfxApi`; the hand-rolled `PdfRendererException` is gone in favour
+    of pigeon's `FlutterError`, which carries the same code/message/details to Dart.
+  - The message schema is unchanged, so no Dart call site moved. The wire codec did change, but all three sides are
+    generated and ship together.
+  - `pigeon: ^27.1.1` is a **dev** dependency — dev deps are not resolved transitively, so nothing reaches consumers.
+    The old analyzer conflict is gone: pigeon 4 pinned `analyzer` 4.x and Dart `<3.0.0`; pigeon 27 wants
+    `analyzer >=10 <13`, which resolves against our `sdk: ^3.12.0`.
+* Added a real `example/` host app (the old `example/main.dart` was a snippet, not a buildable project) with a 2-page
+  `assets/hello.pdf`, so the plugin can actually be built and driven on a device.
+* Android: pinned `compileOptions` and the Kotlin `jvmTarget` to 17. Neither was declared, so javac defaulted to 11
+  while Kotlin followed the JDK toolchain, and AGP 9 fails the build on the mismatch.
 * Forked from pdfx 2.9.3 as `pdfx_lite`: Android + iOS only.
 * Removed the Web (`pdf.js`), macOS and Windows renderers, and the CocoaPods podspec — SPM only.
 * Removed the method-channel platform implementation; pigeon covers both remaining platforms.

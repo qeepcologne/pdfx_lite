@@ -6,5 +6,3 @@ analyzer:
     - '**/*.g.dart'
     - '**/generated_plugin_registrant.dart'
     - '**/pigeon.dart'
-    # Codegen input: imports package:pigeon, which is not a dev dependency (see pubspec.yaml)
-    - 'pigeons/**'

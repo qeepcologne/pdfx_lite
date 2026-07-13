@@ -2,9 +2,12 @@ import Flutter
 import UIKit
 import CoreGraphics
 
+private func renderError(_ message: String) -> PigeonError {
+    PigeonError(code: "RENDER_ERROR", message: message, details: nil)
+}
+
 public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
     let registrar: FlutterPluginRegistrar
-    static let invalid = NSNumber(value: -1)
     let dispQueue = DispatchQueue(label: "io.scer.pdf_renderer")
 
     let documents = DocumentRepository()
@@ -16,230 +19,208 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
-            let messenger: FlutterBinaryMessenger = registrar.messenger()
-        let api: PdfxApi & NSObjectProtocol = SwiftPdfxPlugin.init(registrar: registrar)
-        PdfxApiSetup(messenger, api);
+        PdfxApiSetup.setUp(
+            binaryMessenger: registrar.messenger(),
+            api: SwiftPdfxPlugin(registrar: registrar)
+        )
     }
 
-    public func openDocumentDataMessage(_ message: OpenDataMessage, completion: @escaping (OpenReply?, FlutterError?) -> Void) {
+    func openDocumentData(message: OpenDataMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
         guard let data = message.data else {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                       message: "Arguments not sended",
-                                       details: nil))
+            return completion(.failure(renderError("Arguments not sended")))
         }
         guard let renderer = openDataDocument(data: data.data) else {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                       message: "Invalid PDF format",
-                                       details: nil))
+            return completion(.failure(renderError("Invalid PDF format")))
         }
 
-        let document = documents.register(renderer: renderer);
-        let result = OpenReply.init()
-        result.id = document.id
-        result.pagesCount = NSNumber.init(value: document.pagesCount)
-
-        completion(result, nil);
+        let document = documents.register(renderer: renderer)
+        completion(.success(OpenReply(
+            id: document.id,
+            pagesCount: Int64(document.pagesCount)
+        )))
     }
 
-    public func openDocumentFileMessage(_ message: OpenPathMessage, completion: @escaping (OpenReply?, FlutterError?) -> Void) {
+    func openDocumentFile(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
         guard let pdfFilePath = message.path else {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                       message: "Arguments not sended",
-                                       details: nil))
+            return completion(.failure(renderError("Arguments not sended")))
         }
-        guard let renderer = openFileDocument(pdfFilePath: pdfFilePath)  else {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                       message: "Invalid PDF format",
-                                       details: nil))
+        guard let renderer = openFileDocument(pdfFilePath: pdfFilePath) else {
+            return completion(.failure(renderError("Invalid PDF format")))
         }
 
-        let document = documents.register(renderer: renderer);
-        let result = OpenReply.init()
-        result.id = document.id
-        result.pagesCount = NSNumber.init(value: document.pagesCount)
-
-        completion(result, nil);
+        let document = documents.register(renderer: renderer)
+        completion(.success(OpenReply(
+            id: document.id,
+            pagesCount: Int64(document.pagesCount)
+        )))
     }
 
-    public func openDocumentAssetMessage(_ message: OpenPathMessage, completion: @escaping (OpenReply?, FlutterError?) -> Void) {
+    func openDocumentAsset(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
         guard let name = message.path else {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                       message: "Arguments not sended",
-                                       details: nil))
+            return completion(.failure(renderError("Arguments not sended")))
         }
-        guard let renderer = openAssetDocument(name: name)  else {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                       message: "Invalid PDF format",
-                                       details: nil))
+        guard let renderer = openAssetDocument(name: name) else {
+            return completion(.failure(renderError("Invalid PDF format")))
         }
 
-        let document = documents.register(renderer: renderer);
-        let result = OpenReply.init()
-        result.id = document.id
-        result.pagesCount = NSNumber.init(value: document.pagesCount)
-
-        completion(result, nil);
+        let document = documents.register(renderer: renderer)
+        completion(.success(OpenReply(
+            id: document.id,
+            pagesCount: Int64(document.pagesCount)
+        )))
     }
 
-    public func closeDocumentMessage(_ message: IdMessage, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
+    func closeDocument(message: IdMessage) throws {
         if let id = message.id {
             documents.close(id: id)
         }
     }
 
-    public func getPageMessage(_ message: GetPageMessage, completion: @escaping (GetPageReply?, FlutterError?) -> Void) {
+    func getPage(message: GetPageMessage, completion: @escaping (Result<GetPageReply, Error>) -> Void) {
+        guard let documentId = message.documentId, let pageNumber = message.pageNumber else {
+            return completion(.failure(renderError("Need call arguments: documentId & pageNumber")))
+        }
         do {
-            let documentId = message.documentId
-            let pageNumber = message.pageNumber
-
-            let result = GetPageReply.init();
-
-            let renderer = try documents.get(id: documentId!).openPage(pageNumber: pageNumber as! Int)
-            if (renderer == nil) {
-                return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                           message: "Unexpected error: renderer is nil.",
-                                           details: nil))
+            guard let renderer = try documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+                return completion(.failure(renderError("Unexpected error: renderer is nil.")))
             }
 
-            let page = pages.register(documentId: documentId!, renderer: renderer!)
-            result.id = page.id
-            result.width = NSNumber.init(value: page.width)
-            result.height = NSNumber.init(value: page.height)
-            completion(result, nil)
+            let page = pages.register(documentId: documentId, renderer: renderer)
+            completion(.success(GetPageReply(
+                id: page.id,
+                width: page.width,
+                height: page.height
+            )))
         } catch let err {
-            return completion(nil, FlutterError(code: "RENDER_ERROR",
-                                message: "Unexpected error: \(err).",
-                                details: nil))
+            completion(.failure(renderError("Unexpected error: \(err).")))
         }
     }
 
-    public func renderPageMessage(_ message: RenderPageMessage, completion: @escaping (RenderPageReply?, FlutterError?) -> Void) {
+    func renderPage(message: RenderPageMessage, completion: @escaping (Result<RenderPageReply, Error>) -> Void) {
+        guard let pageId = message.pageId,
+              let width = message.width,
+              let height = message.height,
+              let format = message.format,
+              let backgroundColor = message.backgroundColor,
+              let quality = message.quality else {
+            return completion(.failure(renderError("Missing render arguments")))
+        }
+        guard let compressFormat = CompressFormat(rawValue: Int(format)) else {
+            return completion(.failure(renderError("Unsupported format: \(format)")))
+        }
+
         // Set crop if required
         var cropZone: CGRect? = nil
-        if (message.crop!.boolValue){
-            let cWidth = message.cropWidth!.intValue
-            let cHeight = message.cropHeight!.intValue
-            if (cWidth != message.width!.intValue || cHeight != message.height!.intValue){
-                cropZone = CGRect(x: message.cropX as! Int,
-                                  y: message.cropY as! Int,
-                                  width: cWidth,
-                                  height: cHeight)
+        if message.crop == true, let cropWidth = message.cropWidth, let cropHeight = message.cropHeight {
+            if cropWidth != width || cropHeight != height {
+                cropZone = CGRect(x: Int(message.cropX ?? 0),
+                                  y: Int(message.cropY ?? 0),
+                                  width: Int(cropWidth),
+                                  height: Int(cropHeight))
             }
         }
 
         dispQueue.async {
-            let result = RenderPageReply.init()
             do {
-                let page = try self.pages.get(id: message.pageId!)
-                if let data = page.render(
-                    width: message.width!.intValue,
-                    height: message.height!.intValue,
+                let page = try self.pages.get(id: pageId)
+                guard let data = page.render(
+                    width: Int(width),
+                    height: Int(height),
                     crop: cropZone,
-                    compressFormat: CompressFormat(rawValue: message.format!.intValue)!,
-                    backgroundColor: message.backgroundColor!,
-                    quality: message.quality!.intValue
-                ) {
-                    result.width = NSNumber.init(value: data.width)
-                    result.height = NSNumber.init(value: data.height)
-                    result.path = data.path
+                    compressFormat: compressFormat,
+                    backgroundColor: backgroundColor,
+                    quality: Int(quality)
+                ) else {
+                    return DispatchQueue.main.async {
+                        completion(.failure(renderError("Page render produced no file")))
+                    }
+                }
+
+                let reply = RenderPageReply(
+                    width: Int64(data.width),
+                    height: Int64(data.height),
+                    path: data.path
+                )
+                DispatchQueue.main.async {
+                    completion(.success(reply))
                 }
             } catch {
-                completion(nil, FlutterError(code: "RENDER_ERROR",
-                                    message: "Unexpected error: \(error).",
-                    details: nil))
-            }
-            DispatchQueue.main.async {
-                completion(result.path != nil ? result : nil, nil)
+                DispatchQueue.main.async {
+                    completion(.failure(renderError("Unexpected error: \(error).")))
+                }
             }
         }
     }
 
-    public func closePageMessage(_ message: IdMessage, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
+    func closePage(message: IdMessage) throws {
         if let id = message.id {
             pages.close(id: id)
         }
     }
 
-    public func registerTextureWithError(_ error: AutoreleasingUnsafeMutablePointer<FlutterError?>) -> RegisterTextureReply? {
-        let result = RegisterTextureReply.init()
+    func registerTexture() throws -> RegisterTextureReply {
         let pageTex = PdfPageTexture(registrar: registrar)
-            let texId = registrar.textures().register(pageTex)
+        let texId = registrar.textures().register(pageTex)
         textures[texId] = pageTex
         pageTex.texId = texId
-        result.id = NSNumber.init(value: texId)
-        return result
+        return RegisterTextureReply(id: texId)
     }
 
-    public func unregisterTextureMessage(_ message: UnregisterTextureMessage, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        let texId = message.id?.int64Value
-            registrar.textures().unregisterTexture(texId!)
-            textures[texId!] = nil
+    func unregisterTexture(message: UnregisterTextureMessage) throws {
+        guard let texId = message.id else {
+            throw renderError("Need call arguments: id")
+        }
+        registrar.textures().unregisterTexture(texId)
+        textures[texId] = nil
     }
 
-    public func resizeTextureMessage(_ message: ResizeTextureMessage, completion: @escaping (FlutterError?) -> Void) {
-        let texId = message.textureId?.int64Value
-        guard let pageTex = textures[texId!] else {
-            return completion(FlutterError(code: "RENDER_ERROR",
-                                           message: "No texture of texId=\(String(describing: texId!))",
-                                       details: nil))
+    func resizeTexture(message: ResizeTextureMessage, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let texId = message.textureId, let width = message.width, let height = message.height else {
+            return completion(.failure(renderError("Need call arguments: textureId, width, height")))
         }
-        let width = message.width?.intValue,
-            height = message.height?.intValue
-        pageTex.resize(width: width!, height: height!)
-        return completion(nil)
+        guard let pageTex = textures[texId] else {
+            return completion(.failure(renderError("No texture of texId=\(texId)")))
+        }
+        pageTex.resize(width: Int(width), height: Int(height))
+        completion(.success(()))
     }
 
-    public func updateTextureMessage(_ message: UpdateTextureMessage, completion: @escaping (FlutterError?) -> Void) {
-        let texId = message.textureId?.int64Value
-        let pageId = message.pageId!
-        let destX = message.destinationX?.intValue
-        let destY = message.destinationY?.intValue
-        let width = message.width?.intValue
-        let height = message.height?.intValue
-        let srcX = message.sourceX?.intValue
-        let srcY = message.sourceY?.intValue
-        let fw = message.fullWidth?.doubleValue
-        let fh = message.fullHeight?.doubleValue
-        let backgroundColor = message.backgroundColor
-        let allowAntialiasing = message.allowAntiAliasing?.boolValue
-
-        let tw = message.textureWidth?.intValue
-        let th = message.textureHeight?.intValue
-
-        let pageTex = textures[texId!]!
-
-        if tw != nil && th != nil {
-          pageTex.resize(width: tw!, height: th!)
+    func updateTexture(message: UpdateTextureMessage, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let texId = message.textureId, let pageTex = textures[texId] else {
+            return completion(.failure(renderError("No texture of texId=\(String(describing: message.textureId))")))
+        }
+        guard let pageId = message.pageId else {
+            return completion(.failure(renderError("Need call arguments: pageId")))
         }
 
-        if width == nil || height == nil {
-            return completion(FlutterError(code: "RENDER_ERROR",
-                                           message: "width/height nil",
-                                       details: nil))
+        if let tw = message.textureWidth, let th = message.textureHeight {
+            pageTex.resize(width: Int(tw), height: Int(th))
         }
+
+        guard let width = message.width, let height = message.height else {
+            return completion(.failure(renderError("width/height nil")))
+        }
+
         do {
-            let page = try self.pages.get(id: pageId)
+            let page = try pages.get(id: pageId)
 
             try pageTex.updateTex(
                 page: page.renderer,
-                destX: destX!,
-                destY: destY!,
-                width: width!,
-                height: height!,
-                srcX: srcX!,
-                srcY: srcY!,
-                fullWidth: fw,
-                fullHeight: fh,
-                backgroundColor: backgroundColor,
-                allowAntialiasing: allowAntialiasing!
+                destX: Int(message.destinationX ?? 0),
+                destY: Int(message.destinationY ?? 0),
+                width: Int(width),
+                height: Int(height),
+                srcX: Int(message.sourceX ?? 0),
+                srcY: Int(message.sourceY ?? 0),
+                fullWidth: message.fullWidth,
+                fullHeight: message.fullHeight,
+                backgroundColor: message.backgroundColor,
+                allowAntialiasing: message.allowAntiAliasing ?? true
             )
-            return completion(nil)
+            completion(.success(()))
         } catch {
-            return completion(FlutterError(code: "RENDER_ERROR",
-                                           message: "Cannot render texture",
-                                       details: nil))
+            completion(.failure(renderError("Cannot render texture")))
         }
-
     }
 
     func openDataDocument(data: Data) -> CGPDFDocument? {

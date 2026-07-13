@@ -1,13 +1,14 @@
 import 'package:pigeon/pigeon.dart';
 
+/// Regenerate all three sides with:
+///   dart run pigeon --input pigeons/messages.dart
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/renderer/io/pigeon.dart',
-  objcHeaderOut: './ios/Classes/messages.h',
-  objcSourceOut: './ios/Classes/messages.m',
-  javaOut: './android/src/main/java/dev/flutter/pigeon/Pigeon.java',
-  javaOptions: JavaOptions(
-    package: 'dev.flutter.pigeon',
+  kotlinOut: 'android/src/main/kotlin/io/scer/pdfx/Pigeon.g.kt',
+  kotlinOptions: KotlinOptions(
+    package: 'io.scer.pdfx',
   ),
+  swiftOut: 'ios/pdfx_lite/Sources/pdfx_lite/Pigeon.g.swift',
 ))
 class OpenDataMessage {
   Uint8List? data;
@@ -97,16 +98,6 @@ class UnregisterTextureMessage {
   int? id;
 }
 
-/// Rebuild: `flutter pub run pigeon --input pigeons/message.dart`
-/// After build edit ios/Classes/pigeon/messages.m
-/// replace `#import <Flutter/Flutter.h>` to
-/// ````
-// #if TARGET_OS_IOS
-// #import <Flutter/Flutter.h>
-// #else
-// #endif
-/// ````
-///
 @HostApi()
 abstract class PdfxApi {
   @async

@@ -21,9 +21,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  #`pigeon` is NOT a dev dependency: v4 pins analyzer 4.x, and the generated files (lib/src/renderer/io/pigeon.dart,
-  #android/.../Pigeon.java, ios/.../Messages.swift) are checked in and the message API is frozen. To regenerate, add
-  #`pigeon` temporarily and run it against `pigeons/messages.dart`.
+  #Codegen only — dev deps are not resolved transitively, so nothing here reaches consumers of the package.
+  #Regenerate the bridge with: dart run pigeon --input pigeons/messages.dart
+  pigeon: ^27.1.1
 
 flutter:
   plugin:
