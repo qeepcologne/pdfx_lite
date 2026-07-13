@@ -28,5 +28,10 @@ kotlin {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    //`-android`, not `-core`: `Messages.updateTexture` hops back to the platform thread with
+    //`withContext(Dispatchers.Main)`, and the Main dispatcher on Android lives in this artifact, not in core. It
+    //compiles either way -- with core alone it fails at *runtime* ("Module with the Main dispatcher had failed to
+    //initialize"). It only worked because Flutter's embedding happens to pull `-android` in transitively via
+    //androidx.lifecycle; that is Flutter's business to change, not a contract with us. `-android` depends on `-core`.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 }

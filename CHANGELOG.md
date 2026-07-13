@@ -44,6 +44,19 @@ Breaking in a minor again, same reasoning as 3.2.0 — the fork has essentially 
   Unlike the WebP case above, this one is a true `Exception` rather than an `Error`: whether a PDF is encrypted is a
   property of the data, unknowable until it is read, so it cannot be avoided up front and catching it is correct.
 
+* **Android depended on the wrong coroutines artifact.** `Messages.updateTexture` returns to the platform thread with
+  `withContext(Dispatchers.Main)`, but the build declared `kotlinx-coroutines-core`, which has no Android main
+  dispatcher — that lives in `kotlinx-coroutines-android`. It compiles either way and fails only at *runtime*
+  (`Module with the Main dispatcher had failed to initialize`). It worked purely by accident: Flutter's own embedding
+  pulls `-android` in transitively via `androidx.lifecycle`. That is Flutter's dependency to change, not a contract
+  with us, so the plugin now declares `kotlinx-coroutines-android` itself (which depends on `-core`).
+
+### Toolchain
+
+* Example app moved to **Gradle 9.6.1** (from 9.1.0) and **AGP 9.2.1** (from 9.0.1), both current. This also clears
+  AGP's "recommend a newer Android Gradle plugin to use compile SDK 37" warning. `kotlinx-coroutines` stays at 1.10.2,
+  which is still the latest release.
+
 ## 3.2.0+1
 
 * Docs only, no code change. Shortened the `PdfView` → `PdfViewPinch` migration step in the README; the detail it
