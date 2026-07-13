@@ -23,6 +23,8 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -34,6 +36,15 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
 
     private val surfaceProducers: SparseArray<TextureRegistry.SurfaceProducer> = SparseArray()
     private val documentStatesPerSurface: SparseArray<UpdateTextureMessage> = SparseArray()
+
+    //One scope for the plugin's lifetime, cancelled on detach. Launching from a fresh CoroutineScope per call leaves
+    //a render running after the engine goes away, which then replies on a dead channel.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Called from [PdfxPlugin.onDetachedFromEngine]. Abandons any in-flight render. */
+    fun dispose() {
+        scope.cancel()
+    }
 
     override fun openDocumentData(
         message: OpenDataMessage,
@@ -154,7 +165,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         message: RenderPageMessage,
         callback: (Result<RenderPageReply>) -> Unit
     ) {
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             try {
                 val pageId = message.pageId ?: run {
                     callback(Result.failure(FlutterError(CHANNEL, "Page ID is null")))

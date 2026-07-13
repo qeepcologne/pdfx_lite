@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  meta: ^1.15.0
+  meta: ^1.18.0
   photo_view: ^0.15.0
   synchronized: ^3.4.1
   #`vector_math_64` (Quad/Vector3/Matrix4) for the pinch viewer's transform maths. Flutter pins this to 2.2.0.

@@ -13,10 +13,9 @@ fun InputStream.toFile(file: File) {
  * Save bitmap to file
  */
 fun Bitmap.toFile(file: File, format: Int, quality: Int = 100): File {
-    val stream = FileOutputStream(file, false)
-    val compressFormat = parseCompressFormat(format)
-    this.compress(compressFormat, quality, stream)
-    stream.flush()
-    stream.close()
+    FileOutputStream(file, false).use { stream ->
+        this.compress(parseCompressFormat(format, quality), quality, stream)
+        stream.flush()
+    }
     return file
 }
