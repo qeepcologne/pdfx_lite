@@ -4,6 +4,10 @@ Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replac
 
 **Purpose:** minimal and legacy-free, for **current toolchains only** — no CocoaPods (SPM only), no `pdf.js`, no CMake, and built against the latest Flutter, AGP, Gradle, Android SDK and Xcode rather than older ones. If you need Web, desktop, or CocoaPods, use the upstream package instead.
 
+> **Status: Android verified, iOS not yet built.** Android is built and driven on a real device (see `example/`).
+> The iOS half was ported to pigeon 27 on a Linux machine with no Xcode, so its Swift is **reviewed, not compiled**.
+> Don't ship iOS on this until someone has built it on a Mac. See `TODO.md`.
+
 Includes 2 APIs, unchanged from upstream:
 - `renderer` — work with a PDF document, its pages, render a page to an image
 - `viewer` — Flutter widgets & controllers to show the render result
@@ -16,7 +20,8 @@ Includes 2 APIs, unchanged from upstream:
 | iOS integration | CocoaPods podspec + SPM | **SPM only** |
 | Web renderer | `pdf.js` (needs CDN scripts in `index.html`) | **removed** |
 | Desktop | macOS (podspec), Windows (CMake) | **removed** |
-| Platform channel | pigeon (mobile) + method channel (web/Windows) | **pigeon only** |
+| Platform channel | pigeon 4 (mobile) + method channel (web/Windows) | **pigeon 27 only** — generated Kotlin + Swift + Dart |
+| Generated native bridge | 1479 lines of **Java** + a hand-translated `Messages.swift` | **generated from one schema**, no Java |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | **Android** | | |
 | minSdk / compileSdk | 16 / 35 | **24 / 37** |
@@ -25,7 +30,7 @@ Includes 2 APIs, unchanged from upstream:
 | **iOS** | | |
 | Deployment target | 13.0 | **15.0** |
 | **Dart** | | |
-| Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension` | those five dropped |
+| Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |
 | `vector_math` | deprecated `translate` / `scale` | `translateByDouble` / `scaleByDouble` |
 | Tests | 8 (method-channel) | **none** — the implementation they covered is gone |
 
