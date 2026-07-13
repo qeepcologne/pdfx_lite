@@ -21,21 +21,12 @@ before fixing** — several may already be dead, or may not be ours to fix.
 | #532 | Wrong height returned for certain documents | `getPage` returns the native renderer's `width`/`height` verbatim | Needs the reporter's PDF |
 | #557 | Cyrillic characters not displayed on Android | Platform `PdfRenderer` font embedding — quite possibly **not ours** | Needs the reporter's PDF |
 
-## 2. Port from upstream
-
-### `PdfViewPinch`: expose the interaction callbacks · #594 — small, purely additive
-
-Add `onInteractionStart` / `onInteractionUpdate` / `onInteractionEnd` and forward them to the `InteractiveViewer`.
-Free now that we use Flutter's stock viewer, which already takes all three. Target **3.2.0**.
-
----
-
-## 3. Needs Android API 35
+## 2. Needs Android API 35
 
 Two features that are cheap on iOS and gated behind **Android 15** — `minSdk` is 24, so they would work for a small
 minority of Android users. Grouped because they share the same constraint and the same decision.
 
-### 3.1 Password / encrypted PDFs · #600, #618, #550
+### 2.1 Password / encrypted PDFs · #600, #618, #550
 
 `password:` was **removed in 3.0.0** because it was a silent no-op: it crossed the wire and neither platform read it,
 so encrypted PDFs failed to open regardless. Upstream is now implementing it for real (#600).
@@ -44,7 +35,7 @@ so encrypted PDFs failed to open regardless. Upstream is now implementing it for
 - **Android — API 35+ only.** `PdfRenderer(fd, LoadParams.Builder().setPassword(…).build())`, gated on
   `SDK_INT >= 35` **and** `SdkExtensions.getExtensionVersion(S) >= 13`. Below that, upstream's own patch just throws.
 
-### 3.2 Annotations not rendered · #592, #584
+### 2.2 Annotations not rendered · #592, #584
 
 `Page.kt:25` and `Messages.kt:325` hardcode `RENDER_MODE_FOR_DISPLAY`, which does not draw annotations. Android 15
 added `RenderParams` with `FLAG_RENDER_HIGHLIGHT_ANNOTATIONS` / `FLAG_RENDER_TEXT_ANNOTATIONS`. iOS (`CGPDFPage`)
@@ -63,7 +54,7 @@ Pick (2) only when something actually needs it — e.g. if `esim-app` ever has t
 
 ---
 
-## 4. Do not take
+## 3. Do not take
 
 - **#583 "Replace `onSurfaceCleanup` with `onSurfaceDestroyed`"** — backwards. Flutter's engine marks
   `onSurfaceDestroyed` `@Deprecated(since = "Flutter 3.28", forRemoval = true)`; `onSurfaceCleanup` is the
@@ -71,10 +62,13 @@ Pick (2) only when something actually needs it — e.g. if `esim-app` ever has t
 - **#620** (Windows ARM64), **#612** (Windows CMake), **#611** / **#610** (wasm), and the pdf.js/web issues —
   platforms dropped.
 - **#609** (SPM support) — this fork's own upstream PR; already in.
+- **#594 "Expose `InteractiveViewer` onInteraction-methods"** — three nullable callbacks that do nothing unless a
+  caller passes them. Speculative public API for a use case nobody here has; it stays a 15-line change if one ever
+  turns up. Add it when something needs it, not before.
 
 ---
 
-## 5. Give back to upstream
+## 4. Give back to upstream
 
 Fixes `pdfx_lite` has that `pdfx` 2.9.2 does not. The first two are the ones that actually break people:
 
