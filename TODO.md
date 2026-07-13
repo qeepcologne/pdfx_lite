@@ -1,110 +1,65 @@
 # TODO
 
 Work carried over from upstream [`ScerIO/packages.flutter`](https://github.com/ScerIO/packages.flutter) — bugs and PRs
-that are still relevant now that `pdfx_lite` is Android + iOS only. Upstream issue/PR numbers are theirs.
+still relevant now that `pdfx_lite` is Android + iOS only. Issue/PR numbers are upstream's.
 
-Items marked **confirmed** were verified against this codebase. The rest are upstream reports that plausibly apply and
-need reproducing first — don't fix what you haven't reproduced.
+**Done in 3.1.0:** the `documentProgress` NaN crash (#602, #604) and the self-contradicting default render format
+(#581). See the CHANGELOG.
 
 ---
 
-## 1. Bugs
+## 1. Needs verification
 
-### 1.1 `documentProgress` NaN crash — **confirmed**, throws · #602, #604
+Upstream reports that plausibly still apply to us, but which nobody has reproduced against this codebase. **Reproduce
+before fixing** — several may already be dead, or may not be ours to fix.
 
-`lib/src/viewer/pinch/pdf_view_pinch.dart:287`
+| # | Report | Where to look | Repro needed |
+|---|---|---|---|
+| #554 | iOS: aspect-ratio distortion on landscape PDFs | `ios/.../Document.swift:58,66` — `isLandscape` swaps width/height and feeds the drawing transform | A rotated / landscape page on iOS, compared against the same page on Android |
+| #560 | Android: blurry/broken text since Flutter 3.27 | `Messages.kt` `onDocumentOrSurfaceChanged` — the texture `Matrix` is built from `fullWidth / page.width` | High-DPI device; suspect we render at texture size, not device pixel ratio |
+| #585 | Blurry text when pinch-zooming in landscape | same texture path as #560 — probably the same bug | Zoom in hard on a landscape page |
+| #532 | Wrong height returned for certain documents | `getPage` returns the native renderer's `width`/`height` verbatim | Needs the reporter's PDF |
+| #557 | Cyrillic characters not displayed on Android | Platform `PdfRenderer` font embedding — quite possibly **not ours** | Needs the reporter's PDF |
 
-```dart
-final rawDocumentProgress =
-    ((exposed.bottom / r - _lastViewSize!.height) /
-        (_docSize!.height - _lastViewSize!.height));   // denominator == 0 when the doc fits the viewport
-...
-((rawDocumentProgress * precisionFactor).round() / precisionFactor)   // .round() THROWS on NaN/Infinity
-```
+## 2. Port from upstream
 
-When the document is exactly as tall as the viewport — an ordinary single-page PDF — the denominator is zero, giving
-`NaN` or `Infinity`, and Dart's `.round()` raises `UnsupportedError` on both. Not a cosmetic glitch: it throws.
+### `PdfViewPinch`: expose the interaction callbacks · #594 — small, purely additive
 
-Upstream has two competing patches: #602 clamps a non-finite result to `0.0`; #604 skips the update when
-`_docSize.height == _lastViewSize.height`. Take the *guard* (#604 — don't compute a meaningless ratio) **and** keep a
-non-finite fallback, since `r` could in principle be degenerate too.
+Add `onInteractionStart` / `onInteractionUpdate` / `onInteractionEnd` and forward them to the `InteractiveViewer`.
+Free now that we use Flutter's stock viewer, which already takes all three. Target **3.2.0**.
 
-Ship as **3.0.1**. Repro: open a single-page PDF that fits the viewport in `PdfViewPinch`.
+---
 
-### 1.2 Default render format disagrees with itself — **confirmed** · #581
+## 3. Needs Android API 35
 
-| Declaration | Default |
-|---|---|
-| `lib/src/renderer/interfaces/page.dart:69` — `PdfPage.render()`, the abstract API callers see | `jpeg` |
-| `lib/src/renderer/io/platform_pigeon.dart:130` — `PdfPagePigeon.render()`, the implementation | `png` |
-| Android `Messages.kt:185` / iOS `CompressFormat` — native fallback when `format` is null | `png` |
+Two features that are cheap on iOS and gated behind **Android 15** — `minSdk` is 24, so they would work for a small
+minority of Android users. Grouped because they share the same constraint and the same decision.
 
-Dart resolves a default argument from the **static type at the call site**, and `PdfDocument.getPage()` returns
-`PdfPage` — so callers get `jpeg` while every other layer assumes `png`. It also silently flips the background:
-`platform_pigeon.dart` picks `#FFFFFF` for jpeg and `#00FFFFFF` (transparent) for png.
+### 3.1 Password / encrypted PDFs · #600, #618, #550
 
-Align on `png`, as upstream #581 does. **Behaviour change** for anyone calling `render()` without `format:` (bigger
-files, transparent background), so **3.1.0**, called out in the changelog.
+`password:` was **removed in 3.0.0** because it was a silent no-op: it crossed the wire and neither platform read it,
+so encrypted PDFs failed to open regardless. Upstream is now implementing it for real (#600).
 
-### 1.3 iOS landscape aspect-ratio distortion · #554
+- **iOS — works on every version.** `CGPDFDocument.unlockWithPassword(password)`, then check `isUnlocked`.
+- **Android — API 35+ only.** `PdfRenderer(fd, LoadParams.Builder().setPassword(…).build())`, gated on
+  `SDK_INT >= 35` **and** `SdkExtensions.getExtensionVersion(S) >= 13`. Below that, upstream's own patch just throws.
 
-`ios/.../Document.swift:66` swaps width/height when `isLandscape` (rotation 90/270) and derives the drawing transform
-from that. Suspect, but unverified here. **Reproduce first** with a rotated/landscape PDF on iOS, comparing against
-the same page on Android.
-
-### 1.4 Android blurry / broken text · #560 (since Flutter 3.27), #585 (pinch-zoom, landscape)
-
-Both point at the texture path — `Messages.kt` `onDocumentOrSurfaceChanged`, which builds the `Matrix` from
-`fullWidth/page.width` and renders into a `SurfaceProducer` bitmap. Plausible: we render at the *texture* size rather
-than at device-pixel-ratio, so a zoomed page resamples. **Reproduce** on a device at high zoom before touching it.
-
-### 1.5 Wrong height reported for some documents · #532
-
-`getPage` returns `page.width/height` straight from the native renderer. Needs the reporter's PDF to reproduce.
-
-### 1.6 Annotations not rendered · #592, #584
+### 3.2 Annotations not rendered · #592, #584
 
 `Page.kt:25` and `Messages.kt:325` hardcode `RENDER_MODE_FOR_DISPLAY`, which does not draw annotations. Android 15
-(API 35) added `RenderParams` with `FLAG_RENDER_HIGHLIGHT_ANNOTATIONS` / `FLAG_RENDER_TEXT_ANNOTATIONS`. Same API-35
-gate as password support (§3) — so it is opt-in and only on new devices. Do it *with* §3 or not at all.
+added `RenderParams` with `FLAG_RENDER_HIGHLIGHT_ANNOTATIONS` / `FLAG_RENDER_TEXT_ANNOTATIONS`. iOS (`CGPDFPage`)
+draws annotations already, so this is Android-only catch-up.
 
-### 1.7 Cyrillic not displayed on Android · #557
+### The decision, for both
 
-Font-embedding issue in the platform `PdfRenderer`; may not be ours to fix. Needs the reporter's PDF.
+Shipping either means: **works on all iPhones, fails on most Android phones in the field.** That asymmetry has to be
+deliberate and documented, not a surprise — a half-working API is exactly what 3.0.0 removed `password` to escape.
 
----
+1. **Leave both out** until Android 15 is widespread. Honest, nothing half-broken. ← default
+2. **Add them, platform-gated**, throwing a *typed, catchable* error (not the generic "Can't create PDF renderer") so
+   callers can detect and fall back.
 
-## 2. Port from upstream PRs
-
-### 2.1 Expose `InteractiveViewer`'s interaction callbacks · #594 — small
-
-Add `onInteractionStart` / `onInteractionUpdate` / `onInteractionEnd` to `PdfViewPinch` and forward them. **Nearly
-free now**: since we dropped the vendored viewer, `PdfViewPinch` builds Flutter's `InteractiveViewer`, which already
-takes all three. Purely additive → **3.1.0**.
-
----
-
-## 3. Password / encrypted PDFs — decision needed · #600, #618, #550
-
-`password:` was **removed** in 3.0.0 because it was a silent no-op: it crossed the wire and neither platform read it,
-so encrypted PDFs failed to open anyway. Upstream is now implementing it for real (#600), and users keep asking
-(#618, #550). Re-adding it is possible — but the two platforms are not equal:
-
-- **iOS — works everywhere.** `CGPDFDocument.unlockWithPassword(password)`, then check `isUnlocked`. Clean.
-- **Android — API 35+ only.** Needs `PdfRenderer(fd, LoadParams.Builder().setPassword(…).build())`, gated on
-  `SDK_INT >= 35` **and** `SdkExtensions.getExtensionVersion(S) >= 13`. Below that, upstream's own patch just throws.
-  With `minSdk 24`, that is *most devices in the field*.
-
-So "password support" would mean: works on all iPhones, fails on the large majority of Android phones. That
-asymmetry has to be a deliberate, documented choice, not a surprise.
-
-**Options:**
-1. **Leave it out** (status quo). Honest, and no half-working API. Revisit when Android 15 is widespread.
-2. **Add it, platform-gated**, and document plainly that Android needs API 35 + extension 13 — throwing a *typed*,
-   catchable error (not the generic "Can't create PDF renderer") when unsupported, so callers can fall back.
-
-Recommend **(2) only if `esim-app` actually needs encrypted invoices**; otherwise **(1)**. Do not ship it silently
-half-working — that is the exact trap 3.0.0 removed.
+Pick (2) only when something actually needs it — e.g. if `esim-app` ever has to open encrypted invoices.
 
 ---
 
@@ -112,20 +67,22 @@ half-working — that is the exact trap 3.0.0 removed.
 
 - **#583 "Replace `onSurfaceCleanup` with `onSurfaceDestroyed`"** — backwards. Flutter's engine marks
   `onSurfaceDestroyed` `@Deprecated(since = "Flutter 3.28", forRemoval = true)`; `onSurfaceCleanup` is the
-  replacement, and we already use it. Upstream issues #588 and #580 are the fallout of *not* being on it — already
-  fixed here.
-- **#620** (Windows ARM64), **#612** (Windows CMake), **#611** / #610 (wasm), pdf.js/web issues — platforms dropped.
-- **#609** (SPM support) — that is this fork's own upstream PR; already in.
+  replacement and we already use it. Upstream issues #588 and #580 are the fallout of *not* being on it.
+- **#620** (Windows ARM64), **#612** (Windows CMake), **#611** / **#610** (wasm), and the pdf.js/web issues —
+  platforms dropped.
+- **#609** (SPM support) — this fork's own upstream PR; already in.
 
 ---
 
 ## 5. Give back to upstream
 
-Four fixes `pdfx_lite` has that `pdfx` 2.9.2 does not. The first one breaks people:
+Fixes `pdfx_lite` has that `pdfx` 2.9.2 does not. The first two are the ones that actually break people:
 
+- **`PdfViewPinch(scrollDirection: Axis.horizontal)` throws and renders blank** — the NaN divide-by-zero above.
+  Reproduced on device. Upstream has two partial patches open (#602, #604) but neither is merged.
 - **Android crop bug** — `renderPage` reads the crop width from `message.width` instead of `message.cropWidth`, so
   `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)` violates `cropX + cropW <= bitmap.width` and **throws** for
-  any crop not flush to the left edge. One-line fix. Worth an issue + PR on its own.
-- iOS `renderPage` calling its completion twice on error, and reporting failure as `completion(nil, nil)`.
-- Unsynchronised data race in the iOS document/page repositories.
+  any crop not flush to the left edge. One-line fix.
+- iOS `renderPage` calling its completion twice on error, reporting failure as `completion(nil, nil)`.
+- An unsynchronised data race in the iOS document/page repositories.
 - A `CoroutineScope` leaked per render on Android.

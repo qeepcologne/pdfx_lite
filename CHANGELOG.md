@@ -1,3 +1,20 @@
+## 3.1.0
+
+Two bugs inherited from upstream, both still present in `pdfx` 2.9.2.
+
+* **`PdfViewPinch(scrollDirection: Axis.horizontal)` was completely broken** — it threw
+  `Unsupported operation: Infinity or NaN toInt` on the first frame and rendered a blank page. The horizontal layout
+  sets the document height to *exactly* the viewport height, so `documentProgress`'s
+  `(docHeight - viewHeight)` divisor is always zero; the resulting `NaN` then hit `.round()`, which throws. Vertical
+  scrolling hit the same thing whenever a document happened to be no taller than the viewport. Now guarded: a document
+  with nothing to scroll reports progress `0.0`. (upstream #602, #604)
+* **Breaking-ish: `PdfPage.render()` now defaults to `format: png`**, not `jpeg`. The default contradicted itself —
+  the implementation (`PdfPagePigeon.render`) and both native sides already defaulted to PNG, and the doc comment said
+  so, but the abstract `PdfPage.render()` that callers actually bind to said JPEG. Since `backgroundColor` is derived
+  from the format, a plain `render()` also silently produced a white background instead of a transparent one. If you
+  relied on the JPEG default, pass `format: PdfPageImageFormat.jpeg` explicitly. `PdfView` is unaffected — it always
+  passed both arguments. (upstream #581)
+
 ## 3.0.0
 
 First `pdfx_lite` release, forked from `pdfx` **2.9.2** (upstream's latest). **3.0.0**, because the public API breaks

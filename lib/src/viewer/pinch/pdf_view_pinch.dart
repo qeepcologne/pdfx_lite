@@ -284,13 +284,17 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         -m.row0[3], -m.row1[3], _lastViewSize!.width, _lastViewSize!.height);
 
     if (_lastViewSize?.height != null) {
-      final rawDocumentProgress =
-          ((exposed.bottom / r - _lastViewSize!.height) /
-              (_docSize!.height - _lastViewSize!.height));
+      //A document no taller than the viewport has nothing to scroll through, so there is no progress to report — and
+      //dividing by that zero extent yields NaN/Infinity, which `.round()` below throws on.
+      final scrollableExtent = _docSize!.height - _lastViewSize!.height;
+      final rawDocumentProgress = scrollableExtent > 0
+          ? (exposed.bottom / r - _lastViewSize!.height) / scrollableExtent
+          : 0.0;
       const precisionFactor = 10000;
-      _controller._documentProgress =
-          ((rawDocumentProgress * precisionFactor).round() / precisionFactor)
-              .clamp(0.0, 1.0);
+      _controller._documentProgress = rawDocumentProgress.isFinite
+          ? ((rawDocumentProgress * precisionFactor).round() / precisionFactor)
+              .clamp(0.0, 1.0)
+          : 0.0;
     }
 
     var pagesToUpdate = 0;
