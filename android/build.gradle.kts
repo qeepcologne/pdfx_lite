@@ -2,7 +2,8 @@ plugins {
     id("com.android.library")
 }
 
-//AGP 9 only: Kotlin is built in, so no `kotlin-android` plugin and no compat guard.
+//AGP 9 only, so no `kotlin-android` plugin and no compat guard. Kotlin still compiles whether or not the host sets
+//`android.builtInKotlin=false` — Flutter's app template sets it, and its migrator re-adds it on every build.
 //`src/main/kotlin` is a default source dir.
 android {
     namespace = "io.scer.pdfx"
