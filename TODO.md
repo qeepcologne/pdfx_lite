@@ -18,6 +18,9 @@ before fixing** — several may already be dead, or may not be ours to fix.
 
 ## 2. Password / encrypted PDFs — blocked on Android API 35 · #600, #618, #550
 
+**Detection landed in 3.3.0**: both platforms now report an encrypted PDF as `PdfPasswordProtectedException` instead of
+"Unknown error" (Android) / "Invalid PDF format" (iOS). *Opening* one is what remains, and it is still blocked below.
+
 `password:` was **removed in 3.0.0** because it was a silent no-op: it crossed the wire and neither platform read it,
 so encrypted PDFs failed to open regardless. Upstream is now implementing it for real (#600).
 

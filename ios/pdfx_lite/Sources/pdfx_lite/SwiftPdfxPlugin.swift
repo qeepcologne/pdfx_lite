@@ -6,6 +6,26 @@ private func renderError(_ message: String) -> PigeonError {
     PigeonError(code: "RENDER_ERROR", message: message, details: nil)
 }
 
+/// The error code for an encrypted PDF, shared verbatim with Android and with the Dart side, which turns it into
+/// `PdfPasswordProtectedException`.
+private func passwordProtectedError() -> PigeonError {
+    PigeonError(code: "PDF_PASSWORD_PROTECTED", message: "The PDF is password-protected", details: nil)
+}
+
+/// Why a document would not open. Distinguishing the two matters: an encrypted PDF is a perfectly valid file that
+/// simply needs a password, and reporting it as "Invalid PDF format" leaves the caller unable to tell the difference.
+private enum OpenFailure: Error {
+    case invalid
+    case passwordProtected
+}
+
+private func openFailure(_ error: Error) -> PigeonError {
+    if case OpenFailure.passwordProtected = error {
+        return passwordProtectedError()
+    }
+    return renderError("Invalid PDF format")
+}
+
 /// Carries a non-Sendable value across a `@Sendable` closure boundary.
 ///
 /// Needed because pigeon generates `PdfxApi` completions as plain `@escaping (Result<T, Error>) -> Void` — not
@@ -42,8 +62,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         guard let data = message.data else {
             return completion(.failure(renderError("Arguments not sended")))
         }
-        guard let renderer = openDataDocument(data: data.data) else {
-            return completion(.failure(renderError("Invalid PDF format")))
+        let renderer: CGPDFDocument
+        do {
+            renderer = try openDataDocument(data: data.data)
+        } catch {
+            return completion(.failure(openFailure(error)))
         }
 
         let document = documents.register(renderer: renderer)
@@ -57,8 +80,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         guard let pdfFilePath = message.path else {
             return completion(.failure(renderError("Arguments not sended")))
         }
-        guard let renderer = openFileDocument(pdfFilePath: pdfFilePath) else {
-            return completion(.failure(renderError("Invalid PDF format")))
+        let renderer: CGPDFDocument
+        do {
+            renderer = try openFileDocument(pdfFilePath: pdfFilePath)
+        } catch {
+            return completion(.failure(openFailure(error)))
         }
 
         let document = documents.register(renderer: renderer)
@@ -72,8 +98,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         guard let name = message.path else {
             return completion(.failure(renderError("Arguments not sended")))
         }
-        guard let renderer = openAssetDocument(name: name) else {
-            return completion(.failure(renderError("Invalid PDF format")))
+        let renderer: CGPDFDocument
+        do {
+            renderer = try openAssetDocument(name: name)
+        } catch {
+            return completion(.failure(openFailure(error)))
         }
 
         let document = documents.register(renderer: renderer)
@@ -243,29 +272,33 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
     }
 
-    func openDataDocument(data: Data) -> CGPDFDocument? {
-        guard let datProv = CGDataProvider(data: data as CFData) else { return nil }
-        let docment = CGPDFDocument(datProv)
-        if docment?.isUnlocked == false {
-            return nil
-        }
-        return docment
+    /// Test `isUnlocked`, never `isEncrypted`. A PDF encrypted with an *empty* user password -- permission
+    /// restrictions only, no password to type, very common for invoices and statements -- is unlocked automatically
+    /// by Core Graphics and reads fine. It is `isEncrypted == true` and `isUnlocked == true` at the same time, so
+    /// rejecting on `isEncrypted` throws away readable documents.
+    private func unlocked(_ document: CGPDFDocument?) throws -> CGPDFDocument {
+        guard let document else { throw OpenFailure.invalid }
+        guard document.isUnlocked else { throw OpenFailure.passwordProtected }
+        return document
     }
 
-    func openFileDocument(pdfFilePath: String) -> CGPDFDocument? {
-        let docment = CGPDFDocument(URL(fileURLWithPath: pdfFilePath) as CFURL)
-        if docment?.isEncrypted == true {
-            return nil
-        }
-        return docment
+    func openDataDocument(data: Data) throws -> CGPDFDocument {
+        guard let provider = CGDataProvider(data: data as CFData) else { throw OpenFailure.invalid }
+        return try unlocked(CGPDFDocument(provider))
     }
 
-    func openAssetDocument(name: String) -> CGPDFDocument? {
-        guard let path = Bundle.main.path(forResource: "Frameworks/App.framework/flutter_assets/" + name, ofType: "") else {
-            return nil
-        }
+    func openFileDocument(pdfFilePath: String) throws -> CGPDFDocument {
+        try unlocked(CGPDFDocument(URL(fileURLWithPath: pdfFilePath) as CFURL))
+    }
 
-        return openFileDocument(pdfFilePath: path)
+    func openAssetDocument(name: String) throws -> CGPDFDocument {
+        guard let path = Bundle.main.path(
+            forResource: "Frameworks/App.framework/flutter_assets/" + name,
+            ofType: ""
+        ) else {
+            throw OpenFailure.invalid
+        }
+        return try openFileDocument(pdfFilePath: path)
     }
 }
 

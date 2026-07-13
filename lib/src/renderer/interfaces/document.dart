@@ -66,3 +66,25 @@ class PdfDocumentAlreadyClosedException implements Exception {
   @override
   String toString() => '$runtimeType: Document already closed';
 }
+
+/// The document is encrypted and needs a password, which [PdfDocument] cannot supply.
+///
+/// Unlike [UnsupportedError] from `render(format: webp)` on iOS, this is a genuine `Exception`: whether a given PDF is
+/// encrypted is a property of the *data*, unknowable until it is read, so a caller cannot avoid it up front and
+/// catching it is the correct response.
+///
+/// Both platforms detect this, but neither can open the document: Android's `PdfRenderer` takes a password only from
+/// API 35 (with SDK extension 13), and the plugin exposes no `password:` argument. So the useful thing a caller can do
+/// is *report* it — telling the user their PDF is password-protected beats "unknown error".
+///
+/// Only PDFs with a real user password throw. The common case of a PDF encrypted for *permissions* (no printing or
+/// copying) with an empty user password opens normally.
+class PdfPasswordProtectedException implements Exception {
+  PdfPasswordProtectedException(this.sourceName);
+
+  /// Which document — e.g. `file:/path/to.pdf`, `asset:doc.pdf`, `memory:binary`.
+  final String sourceName;
+
+  @override
+  String toString() => '$runtimeType: $sourceName is password-protected';
+}

@@ -24,6 +24,26 @@ Breaking in a minor again, same reasoning as 3.2.0 — the fork has essentially 
   ImageIO's `CGImageDestination` rejects `org.webmproject.webp` — it reads WebP since iOS 14 but cannot write it), so
   this is a platform gap, not something the plugin can close without linking `libwebp`.
 
+### Fixes not in upstream
+
+* **iOS rejected readable PDFs that carry permission restrictions.** `openFile` / `openAsset` tested
+  `CGPDFDocument.isEncrypted`, but `openData` tested `isUnlocked` — and those are not the same question. A PDF
+  encrypted with an *empty user password* (permissions only: no printing, no copying — very common for invoices and
+  statements) is unlocked automatically by Core Graphics: `isEncrypted == true` **and** `isUnlocked == true`. So the
+  same document opened fine through `openData` and failed through `openFile` / `openAsset` as "Invalid PDF format".
+  All three paths now test `isUnlocked`. Android was never affected.
+
+* **An encrypted PDF now throws `PdfPasswordProtectedException`, not "Unknown error".** On Android, `PdfRenderer`
+  signals a password-protected document with `SecurityException` — a `RuntimeException`, so absent from the
+  constructor's `throws` clause and easy to miss. Nothing caught it, so it fell through to the catch-all and surfaced
+  as `PlatformException(code: pdf_renderer, message: "Unknown error")`, indistinguishable from any other failure.
+  Both platforms now report the shared code `PDF_PASSWORD_PROTECTED`, which the Dart side turns into a typed,
+  catchable exception. This is *detection*, not support — the plugin still cannot open an encrypted PDF (see
+  `TODO.md` §2) — but a caller can now tell the user why instead of showing "unknown error".
+
+  Unlike the WebP case above, this one is a true `Exception` rather than an `Error`: whether a PDF is encrypted is a
+  property of the data, unknowable until it is read, so it cannot be avoided up front and catching it is correct.
+
 ## 3.2.0+1
 
 * Docs only, no code change. Shortened the `PdfView` → `PdfViewPinch` migration step in the README; the detail it

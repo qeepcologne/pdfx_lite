@@ -15,7 +15,6 @@ import io.flutter.view.TextureRegistry.SurfaceProducer.Callback
 import io.scer.pdfx.resources.DocumentRepository
 import io.scer.pdfx.resources.PageRepository
 import io.scer.pdfx.resources.RepositoryItemNotFoundException
-import io.scer.pdfx.utils.CreateRendererException
 import io.scer.pdfx.utils.randomFilename
 import io.scer.pdfx.utils.toFile
 import java.io.File
@@ -29,6 +28,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val CHANNEL = "pdf_renderer"
+
+/**
+ * The error code for an encrypted PDF, shared verbatim with iOS and with the Dart side, which turns it into
+ * `PdfPasswordProtectedException`. Every other failure here still reports [CHANNEL] as its code.
+ */
+private const val PASSWORD_PROTECTED = "PDF_PASSWORD_PROTECTED"
+
+/**
+ * [ParcelFileDescriptor.open] returned null. Its stub carries no `@NonNull`, so the contract permits this, but in
+ * practice it signals failure by throwing [FileNotFoundException] -- so this is defensive, not a path we expect.
+ * The failures that genuinely cannot build a renderer come from the [PdfRenderer] constructor: [IOException] for a
+ * corrupt file, [SecurityException] for an encrypted one.
+ */
+class CreateRendererException : Exception()
 
 class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                private val documents: DocumentRepository,
@@ -57,6 +70,8 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 id = document.id,
                 pagesCount = document.pagesCount.toLong(),
             )))
+        } catch (e: SecurityException) {
+            callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
             callback(Result.failure(FlutterError(CHANNEL, "Can't open file")))
         } catch (e: CreateRendererException) {
@@ -81,6 +96,8 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: path")))
         } catch (e: FileNotFoundException) {
             callback(Result.failure(FlutterError(CHANNEL, "File not found")))
+        } catch (e: SecurityException) {
+            callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
             callback(Result.failure(FlutterError(CHANNEL, "Can't open file")))
         } catch (e: CreateRendererException) {
@@ -105,6 +122,8 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: path")))
         } catch (e: FileNotFoundException) {
             callback(Result.failure(FlutterError(CHANNEL, "File not found")))
+        } catch (e: SecurityException) {
+            callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
             callback(Result.failure(FlutterError(CHANNEL, "Can't open file")))
         } catch (e: CreateRendererException) {
