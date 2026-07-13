@@ -7,7 +7,7 @@
   on the platform thread and read from the render queue, unsynchronised. `Repository` now holds an `NSLock`. The plugin,
   `Document`, `Page` and `PdfPageTexture` are `@unchecked Sendable` (each documents which lock or thread discipline
   makes that true), and pigeon's completions — which it generates as plain, non-`@Sendable` closures — ride to the
-  render queue in an `UncheckedSendable` box. **Not compiled:** written on Linux without Xcode. See `TODO.md`.
+  render queue in an `UncheckedSendable` box. **Not compiled:** written on Linux without Xcode — reviewed, not built.
 * **Android: `Bitmap.CompressFormat.WEBP`** (deprecated since API 30) gives way to `WEBP_LOSSLESS` / `WEBP_LOSSY`
   behind an API-30 check, keeping the old constant for 24–29. Quality 100 selects lossless. The Kotlin compiler never
   warned about this — the constant is flagged deprecated in `android.jar`, but a clean compile says nothing.
@@ -23,14 +23,17 @@
   - `RenderPageReply.data` — neither native side ever set it and Dart only reads `.path`; a dead field on the wire.
   - `Bitmap.toByteArray()` (Android `Hooks.kt`) — uncalled; it served the in-memory bytes path that went with
     `RgbaData`.
-  - `assertHasPdfSupport()` and `PlatformNotSupportedException` — `hasPdfSupport()` is now hardcoded `true`, so the
-    guard could never fire. It was also called without `await`, so it could not have propagated to the caller anyway.
-    `hasPdfSupport()` itself stays exported for source compatibility with `pdfx`.
+  - `assertHasPdfSupport()` and `PlatformNotSupportedException` — the guard could never fire, and it was called
+    without `await`, so it could not have propagated to the caller anyway. (`hasPdfSupport()` itself went too — see
+    above.)
   - Collapsed two conditional-export shims left behind by the web renderer: `get_pixels/main.dart` +
     `get_pixels/io.dart` became `get_pixels.dart` (and `getPlatformPixels` is just `getPixels`), and
     `viewer/wrappers/pdf_texture.dart` + `implementations/pdf_texture_native.dart` became `viewer/pdf_texture.dart`.
 * `PdfNotSupportException` is now exported. It is thrown to callers (webp on iOS) but lived in an unexported file, so
   it could not be caught by type.
+* **Breaking: removed `hasPdfSupport()`.** It answered a question only the web renderer could ever fail — Android and
+  iOS both render PDFs natively — so it was hardcoded `true`. The internal guard it fed (`assertHasPdfSupport`) was
+  already gone.
 * **Breaking: removed the `password` parameter** from `PdfDocument.openFile` / `openAsset` / `openData`, and the
   matching fields from the pigeon schema. Upstream accepted it on every platform but only the **web** renderer ever
   honoured it: on Android and iOS it was sent over the channel and silently ignored, so encrypted documents failed to

@@ -5,8 +5,12 @@ Standalone PDF renderer & viewer for Flutter on **Android and iOS** — a replac
 **Purpose:** minimal and legacy-free, for **current toolchains only** — no CocoaPods (SPM only), no `pdf.js`, no CMake, and built against the latest Flutter, AGP, Gradle, Android SDK and Xcode rather than older ones. If you need Web, desktop, or CocoaPods, use the upstream package instead.
 
 > **Status: Android verified, iOS not yet built.** Android is built and driven on a real device (see `example/`).
-> The iOS half was ported to pigeon 27 on a Linux machine with no Xcode, so its Swift is **reviewed, not compiled**.
-> Don't ship iOS on this until someone has built it on a Mac. See `TODO.md`.
+> The iOS half — the pigeon 27 port *and* the Swift 6 strict-concurrency migration — was written on a Linux machine
+> with no Xcode, so its Swift is **reviewed, not compiled**. Expect the first Mac build to find things; if strict
+> concurrency fights back, `.swiftLanguageMode(.v5)` in `Package.swift` restores the old semantics without giving up
+> the `Repository` lock. Don't ship iOS on this until someone has built it on a Mac.
+>
+> There are also **no tests** — the 8 upstream ones drove the method-channel implementation, which is gone.
 
 Includes 2 APIs, unchanged from upstream:
 - `renderer` — work with a PDF document, its pages, render a page to an image
@@ -30,7 +34,6 @@ Includes 2 APIs, unchanged from upstream:
 | **Dart** | | |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Dependencies | + `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those six dropped — only `meta`, `photo_view`, `synchronized`, `vector_math` remain |
-| Tests | 8 (method-channel) | none — the implementation they covered is gone |
 
 Everything else — the public API, the pinch/simple viewers, the Android and iOS native renderers — is upstream's.
 
@@ -65,8 +68,6 @@ final controller = PdfControllerPinch(
 PdfViewPinch(controller: controller);
 ```
 
-`hasPdfSupport()` always returns `true`: both supported platforms render PDFs natively.
-
 ## Migrating from pdfx
 
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
@@ -83,6 +84,8 @@ PdfViewPinch(controller: controller);
    sent over the channel and silently ignored, so an encrypted PDF failed to open anyway (`Can't create PDF renderer`
    on Android, `Invalid PDF format` on iOS). Removing it turns a silent no-op into a compile error. If you need
    encrypted PDFs on mobile, this package cannot open them — and neither could `pdfx`.
+5. **Drop `hasPdfSupport()`** — it no longer exists. It answered a question only the web renderer could fail: Android
+   and iOS both render PDFs natively, so it was hardcoded `true`. Delete the check and the branch behind it.
 
 ## Upstream
 

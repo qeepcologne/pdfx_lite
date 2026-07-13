@@ -1,4 +1,3 @@
-export 'src/renderer/has_pdf_support.dart';
 export 'src/renderer/interfaces/document.dart';
 export 'src/renderer/interfaces/page.dart';
 // PdfNotSupportException is thrown to callers (webp on iOS), so it must be
