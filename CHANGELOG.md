@@ -1,5 +1,18 @@
 ## 2.9.3 (pdfx_lite fork)
 
+* **iOS: Swift 6 language mode.** `Package.swift` moves to `swift-tools-version: 6.0` with `.swiftLanguageMode(.v6)`.
+  Strict concurrency exposed a real data race: `DocumentRepository` / `PageRepository` were plain dictionaries written
+  on the platform thread and read from the render queue, unsynchronised. `Repository` now holds an `NSLock`. The plugin,
+  `Document`, `Page` and `PdfPageTexture` are `@unchecked Sendable` (each documents which lock or thread discipline
+  makes that true), and pigeon's completions — which it generates as plain, non-`@Sendable` closures — ride to the
+  render queue in an `UncheckedSendable` box. **Not compiled:** written on Linux without Xcode. See `TODO.md`.
+* **Android: `Bitmap.CompressFormat.WEBP`** (deprecated since API 30) gives way to `WEBP_LOSSLESS` / `WEBP_LOSSY`
+  behind an API-30 check, keeping the old constant for 24–29. Quality 100 selects lossless. The Kotlin compiler never
+  warned about this — the constant is flagged deprecated in `android.jar`, but a clean compile says nothing.
+* **Android: `renderPage` no longer leaks a `CoroutineScope` per call.** It built a fresh
+  `CoroutineScope(Dispatchers.IO)` on every render and never cancelled it, so a render outliving engine detach kept
+  going and then replied on a dead channel. `Messages` now owns one `SupervisorJob`-backed scope, cancelled from
+  `onDetachedFromEngine`.
 * **Dropped `plugin_platform_interface`.** `PdfxPlatform` extended `PlatformInterface` for the token /
   settable-`instance` machinery that lets third parties register their own platform implementation. There is exactly
   one implementation (`PdfxPlatformPigeon`, serving both Android and iOS) and `PdfxPlatform` is not even exported, so

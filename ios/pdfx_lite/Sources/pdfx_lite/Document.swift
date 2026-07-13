@@ -1,14 +1,14 @@
 import UIKit
 
-class Document {
+/// `@unchecked Sendable`: immutable, but wraps a `CGPDFDocument`, which carries no Sendable conformance.
+/// Reached from the platform thread and the render queue; see `Repository`, which holds the lock.
+final class Document: @unchecked Sendable {
     let id: String
     let renderer: CGPDFDocument
-    var pages: [CGPDFPage?]
 
     init(id: String, renderer: CGPDFDocument) {
         self.id = id
         self.renderer = renderer
-        self.pages = Array<CGPDFPage?>(repeating: nil, count: renderer.numberOfPages)
     }
 
     var pagesCount: Int {
@@ -25,7 +25,8 @@ class Document {
     }
 }
 
-class Page {
+/// `@unchecked Sendable`: immutable, but wraps a `CGPDFPage`. `render` runs on the background render queue.
+final class Page: @unchecked Sendable {
     let id: String
     let documentId: String
     let renderer: CGPDFPage
@@ -149,7 +150,7 @@ class Page {
             }
         }
         // Create temporary filename
-        let randomFileName = NSUUID().uuidString.replacingOccurrences(of: "-", with: "")
+        let randomFileName = UUID().uuidString.replacingOccurrences(of: "-", with: "")
         var tempOutFileExtension: String?
         var tempOutFileName: String?
         switch(compressFormat) {
@@ -172,16 +173,11 @@ class Page {
         return fileURL
     }
 
-    class DataResult {
+    /// A value type, so it can be handed back from the render queue to the platform thread.
+    struct DataResult: Sendable {
         let width: Int
         let height: Int
         let path: String
-
-        init(width: Int, height: Int, path: String) {
-            self.width = width
-            self.height = height
-            self.path = path
-        }
     }
 }
 

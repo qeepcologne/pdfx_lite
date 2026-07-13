@@ -6,7 +6,20 @@ private func renderError(_ message: String) -> PigeonError {
     PigeonError(code: "RENDER_ERROR", message: message, details: nil)
 }
 
-public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
+/// Carries a non-Sendable value across a `@Sendable` closure boundary.
+///
+/// Needed because pigeon generates `PdfxApi` completions as plain `@escaping (Result<T, Error>) -> Void` — not
+/// `@Sendable` — while `DispatchQueue.async` takes a `@Sendable` closure. Capturing the box (which is Sendable) and
+/// calling `.value` inside is legal; capturing the closure directly is not. Safe here because the completion is
+/// invoked exactly once, back on the main queue.
+private struct UncheckedSendable<T>: @unchecked Sendable {
+    let value: T
+}
+
+/// `@unchecked Sendable`: the repositories are lock-guarded (see `Repository`), `textures` is only touched on the
+/// platform thread, and `registrar`/`dispQueue` are immutable. Cannot be actor-isolated instead — the generated
+/// `PdfxApi` protocol is non-isolated, so an isolated type could not conform to it.
+public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked Sendable {
     let registrar: FlutterPluginRegistrar
     let dispQueue = DispatchQueue(label: "io.scer.pdf_renderer")
 
@@ -109,16 +122,23 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
             return completion(.failure(renderError("Unsupported format: \(format)")))
         }
 
-        // Set crop if required
-        var cropZone: CGRect? = nil
-        if message.crop == true, let cropWidth = message.cropWidth, let cropHeight = message.cropHeight {
-            if cropWidth != width || cropHeight != height {
-                cropZone = CGRect(x: Int(message.cropX ?? 0),
-                                  y: Int(message.cropY ?? 0),
-                                  width: Int(cropWidth),
-                                  height: Int(cropHeight))
+        //Set crop if required. A `let`, not a `var`: the render closure below is @Sendable and cannot capture a
+        //mutable local.
+        let cropZone: CGRect? = {
+            guard message.crop == true,
+                  let cropWidth = message.cropWidth,
+                  let cropHeight = message.cropHeight,
+                  cropWidth != width || cropHeight != height else {
+                return nil
             }
-        }
+            return CGRect(x: Int(message.cropX ?? 0),
+                          y: Int(message.cropY ?? 0),
+                          width: Int(cropWidth),
+                          height: Int(cropHeight))
+        }()
+
+        //The completion is not @Sendable (pigeon generates it plain), so it rides across the queue in a box.
+        let boxed = UncheckedSendable(value: completion)
 
         dispQueue.async {
             do {
@@ -132,7 +152,7 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
                     quality: Int(quality)
                 ) else {
                     return DispatchQueue.main.async {
-                        completion(.failure(renderError("Page render produced no file")))
+                        boxed.value(.failure(renderError("Page render produced no file")))
                     }
                 }
 
@@ -142,11 +162,11 @@ public class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi {
                     path: data.path
                 )
                 DispatchQueue.main.async {
-                    completion(.success(reply))
+                    boxed.value(.success(reply))
                 }
             } catch {
                 DispatchQueue.main.async {
-                    completion(.failure(renderError("Unexpected error: \(error).")))
+                    boxed.value(.failure(renderError("Unexpected error: \(error).")))
                 }
             }
         }
@@ -255,7 +275,10 @@ enum PdfRenderError : Error {
   case notSupported(String)
 }
 
-class PdfPageTexture : NSObject {
+/// `@unchecked Sendable`: Flutter calls `copyPixelBuffer` from its own raster thread while `updateTex` runs on the
+/// platform thread, so `pixBuf` is genuinely shared — and already guarded by `lock`. The remaining state is only
+/// touched from the platform thread.
+final class PdfPageTexture : NSObject, @unchecked Sendable {
   private var pixBuf : CVPixelBuffer?
   private let lock = NSLock()
   weak var registrar: FlutterPluginRegistrar?
