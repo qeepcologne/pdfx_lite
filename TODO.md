@@ -51,11 +51,6 @@ Pick (2) only when something actually needs it — e.g. if `esim-app` ever has t
 
 ## 3. Do not take
 
-- **#583 "Replace `onSurfaceCleanup` with `onSurfaceDestroyed`"** — backwards. Flutter's engine marks
-  `onSurfaceDestroyed` `@Deprecated(since = "Flutter 3.28", forRemoval = true)`; `onSurfaceCleanup` is the
-  replacement and we already use it. Upstream issues #588 and #580 are the fallout of *not* being on it.
-- **#620** (Windows ARM64), **#612** (Windows CMake), **#611** / **#610** (wasm), and the pdf.js/web issues —
-  platforms dropped.
 - **#594 "Expose `InteractiveViewer` onInteraction-methods"** — three nullable callbacks that do nothing unless a
   caller passes them. Speculative public API for a use case nobody here has; it stays a 15-line change if one ever
   turns up. Add it when something needs it, not before.
