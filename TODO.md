@@ -59,18 +59,7 @@ Pick (2) only when something actually needs it — e.g. if `esim-app` ever has t
 - **#594 "Expose `InteractiveViewer` onInteraction-methods"** — three nullable callbacks that do nothing unless a
   caller passes them. Speculative public API for a use case nobody here has; it stays a 15-line change if one ever
   turns up. Add it when something needs it, not before.
-
----
-
-## 4. Give back to upstream
-
-Fixes `pdfx_lite` has that `pdfx` 2.9.2 does not. The first two are the ones that actually break people:
-
-- **`PdfViewPinch(scrollDirection: Axis.horizontal)` throws and renders blank** — the NaN divide-by-zero above.
-  Reproduced on device. Upstream has two partial patches open (#602, #604) but neither is merged.
-- **Android crop bug** — `renderPage` reads the crop width from `message.width` instead of `message.cropWidth`, so
-  `Bitmap.createBitmap(bmp, cropX, cropY, cropW, cropH)` violates `cropX + cropW <= bitmap.width` and **throws** for
-  any crop not flush to the left edge. One-line fix.
-- iOS `renderPage` calling its completion twice on error, reporting failure as `completion(nil, nil)`.
-- An unsynchronised data race in the iOS document/page repositories.
-- A `CoroutineScope` leaked per render on Android.
+- **Upstreaming our fixes.** `ScerIO/packages.flutter` is dormant: no release since `pdfx` 2.9.2 (June 2025), no
+  commit to the repo since December 2025, ~200 open issues and PRs unmerged for over a year — including the two
+  partial patches for the NaN crash we fixed in 3.1.0. Patches sent there would sit. Our fixes are recorded in the
+  README and CHANGELOG instead, which is where anyone who lands on this fork will actually find them.
