@@ -33,8 +33,7 @@ PdfViewPinch(controller: controller);
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
 2. **Web:** drop the `pdf.js` `<script>` tags from `web/index.html`, and guard any PDF viewing behind `kIsWeb`,
    falling back to the browser's native viewer.
-3. **Keep `password:`, drop `hasPdfSupport()`.** `password:` works on `openFile` / `openAsset` / `openData` and, unlike
-   upstream's, is actually read on mobile — see *Encrypted PDFs*. `hasPdfSupport()` is gone; it was hardcoded `true`.
+3. **Drop `hasPdfSupport()`** — it was hardcoded `true`.
 4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
    the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
 
