@@ -92,7 +92,7 @@ parameter was removed in 3.0.0 before being reinstated for real in 3.4.0.
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
 | Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta`, `synchronized`, `vector_math` remain |
-| Encrypted PDFs | `password:` accepted, then **silently ignored** on Android and iOS — they could never open | **honoured** on iOS and Android 15+; a typed exception, never silence, where it cannot be |
+| Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race, and
 more. See the [CHANGELOG](CHANGELOG.md).
