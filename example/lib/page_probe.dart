@@ -1,5 +1,10 @@
 // Temporary harness: exercises every page-touching RPC now that pages are addressed by document + number.
-// Run with: flutter run -t lib/page_probe.dart -d <device>
+// Results are printed AND shown on screen.
+//
+//   flutter build apk --debug -t lib/page_probe.dart
+//   adb -s <device> install -r -d build/app/outputs/flutter-apk/app-debug.apk
+//   adb -s <device> shell am start -n io.scer.pdfx_lite_example/.MainActivity
+//   adb -s <device> logcat -d | grep PROBE
 import 'package:flutter/material.dart';
 import 'package:pdfx_lite/pdfx_lite.dart';
 
@@ -43,7 +48,7 @@ Future<void> main() async {
   await _probe('render(png)', () async {
     final p = await doc.getPage(1);
     final img = await p.render(width: p.width, height: p.height);
-    return 'OK ${img!.width}x${img.height} bytes=${img.bytes.length}';
+    return 'OK ${img.width}x${img.height} bytes=${img.bytes.length}';
   });
 
   await _probe('render(jpeg, cropped)', () async {
@@ -54,14 +59,13 @@ Future<void> main() async {
       format: PdfPageImageFormat.jpeg,
       cropRect: const Rect.fromLTWH(0, 0, 50, 50),
     );
-    return 'OK ${img!.width}x${img.height} bytes=${img.bytes.length}';
+    return 'OK ${img.width}x${img.height} bytes=${img.bytes.length}';
   });
 
   await _probe('texture updateRect', () async {
     final p = await doc.getPage(1);
     final tex = await p.createTexture();
     final ok = await tex.updateRect(
-      documentId: doc.id,
       width: p.width.toInt(),
       height: p.height.toInt(),
       textureWidth: p.width.toInt(),
@@ -90,7 +94,6 @@ Future<void> main() async {
     final updates = await Future.wait([
       for (var i = 0; i < 40; i++)
         tex.updateRect(
-          documentId: doc.id,
           width: p.width.toInt(),
           height: p.height.toInt(),
           textureWidth: p.width.toInt(),
@@ -101,9 +104,9 @@ Future<void> main() async {
     await tex.dispose();
 
     final bad = updates.where((ok) => !ok).length;
-    return bad == 0 && img != null
+    return bad == 0
         ? 'OK 40 updates + render ${img.width}x${img.height}'
-        : 'FAILED $bad of 40 updates, render=${img?.width}';
+        : 'FAILED $bad of 40 updates, render=${img.width}';
   });
 
   await doc.close();

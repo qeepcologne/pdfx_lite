@@ -15,10 +15,10 @@ class PdfPageImage {
   final int pageNumber;
 
   /// Width of the rendered area in pixels.
-  final int? width;
+  final int width;
 
   /// Height of the rendered area in pixels.
-  final int? height;
+  final int height;
 
   /// Image bytes
   final Uint8List bytes;
@@ -37,7 +37,7 @@ class PdfPageImage {
   /// [format] - image type, all types can be seen here [PdfPageImageFormat]
   /// [crop] - render only the necessary part of the image
   /// [quality] - hint to the JPEG and WebP compression algorithms (0-100)
-  static Future<PdfPageImage?> _render({
+  static Future<PdfPageImage> _render({
     required String documentId,
     required int pageNumber,
     required double width,
@@ -78,11 +78,14 @@ class PdfPageImage {
       ..quality = quality
       ..forPrint = forPrint);
 
-    final retWidth = result.width, retHeight = result.height;
     //android + ios both render to a temp file; the in-memory `result.data` path served windows/web
+    //
+    //Nullable on the wire only because pigeon's fields all are; both platforms always set all three on success, and a
+    //failure comes back as a PlatformException rather than a half-filled reply.
     final path = result.path;
-    if (path == null) {
-      throw StateError('pdfx_lite: native renderer returned no file path');
+    final retWidth = result.width, retHeight = result.height;
+    if (path == null || retWidth == null || retHeight == null) {
+      throw StateError('pdfx_lite: native renderer returned an incomplete reply');
     }
     final Uint8List pixels = await getPixels(
       path: path,

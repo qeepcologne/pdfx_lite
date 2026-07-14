@@ -2,14 +2,18 @@ part of 'renderer.dart';
 
 /// A Flutter texture the native side draws a [PdfPage] into.
 class PdfPageTexture {
-  PdfPageTexture._({required this.id, required this.pageNumber});
+  PdfPageTexture._({required this.id, required this.page});
 
   /// Texture unique id, from the platform's texture registry.
   /// Generated when the texture is created.
   final int id;
 
+  /// The page drawn into this texture. Held so [updateRect] can name the page natively — a texture is created from
+  /// exactly one page, so making the caller repeat which one only invited them to name a different one.
+  final PdfPage page;
+
   /// Page number. The first page is 1.
-  final int pageNumber;
+  int get pageNumber => page.pageNumber;
 
   int? _texWidth;
   int? _texHeight;
@@ -34,7 +38,6 @@ class PdfPageTexture {
   /// specify [textureWidth] and [textureHeight].
   /// Returns true if succeeded.
   Future<bool> updateRect({
-    required String documentId,
     int destinationX = 0,
     int destinationY = 0,
     int? width,
@@ -50,7 +53,7 @@ class PdfPageTexture {
   }) async {
     try {
       final params = UpdateTextureMessage()
-        ..documentId = documentId
+        ..documentId = page.document.id
         ..pageNumber = pageNumber
         ..textureId = id
         ..destinationX = destinationX

@@ -14,10 +14,10 @@ part 'page.dart';
 part 'page_image.dart';
 part 'page_texture.dart';
 
-/// The renderer is one library across four files, rather than an abstract interface plus an implementation of it.
-/// Upstream split them so a third party could register its own platform, and so that web and desktop could each bring
-/// one; with Android and iOS both served by the single pigeon bridge below, the indirection had exactly one
-/// implementor and bought nothing. `part` — not separate libraries — so [_api] and [_lock] can stay private.
+//The renderer is one library across four files, rather than an abstract interface plus an implementation of it.
+//Upstream split them so a third party could register its own platform, and so that web and desktop could each bring
+//one; with Android and iOS both served by the single pigeon bridge below, the indirection had exactly one implementor
+//and bought nothing. `part`, not separate libraries, so `_api` and `_lock` below can stay private.
 
 /// Serializes a document's use against its close.
 ///

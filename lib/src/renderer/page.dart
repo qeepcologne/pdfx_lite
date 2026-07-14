@@ -61,7 +61,7 @@ class PdfPage {
   /// [cropRect] - render only the necessary part of the image
   /// [quality] - hint to the JPEG and WebP compression algorithms (0-100)
   /// [forPrint] - hint to the rendering quality (Android only)
-  Future<PdfPageImage?> render({
+  Future<PdfPageImage> render({
     required double width,
     required double height,
     PdfPageImageFormat format = PdfPageImageFormat.png,
@@ -71,7 +71,7 @@ class PdfPage {
     bool forPrint = false,
     @visibleForTesting bool removeTempFile = true,
   }) =>
-      _lock.synchronized<PdfPageImage?>(() async {
+      _lock.synchronized<PdfPageImage>(() async {
         if (document.isClosed) {
           throw PdfDocumentAlreadyClosedException();
         }
@@ -95,7 +95,7 @@ class PdfPage {
   Future<PdfPageTexture> createTexture() async {
     final result = await _api.registerTexture();
 
-    return PdfPageTexture._(id: result.id!, pageNumber: pageNumber);
+    return PdfPageTexture._(id: result.id!, page: this);
   }
 
   @override

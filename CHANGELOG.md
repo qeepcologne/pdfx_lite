@@ -19,6 +19,14 @@ No behaviour changed. **Breaking** only for `BasePdfController` (removed) and fo
 `PdfPage`, `PdfPageImage` or `PdfPageTexture`, whose constructors are now private — they are created by the plugin,
 never by a caller. `PdfxPlatform` was never exported. Every other public name is unchanged.
 
+### Tightened three types that were lying
+
+- **`PdfPageTexture.updateRect` no longer takes `documentId`.** A texture is created from exactly one page, so
+  `createTexture()` now captures it; the parameter only ever invited you to name a *different* document. The argument
+  survived from when a texture was tied to a native page id on iOS.
+- **`PdfPage.render` returns `PdfPageImage`, not `PdfPageImage?`.** It has always either thrown or returned an image.
+- **`PdfPageImage.width` / `.height` are `int`, not `int?`** — nullable only because every pigeon field is.
+
 ## 3.5.0
 
 ### Fixed: iOS leaked a `CGPDFPage` for every page ever displayed

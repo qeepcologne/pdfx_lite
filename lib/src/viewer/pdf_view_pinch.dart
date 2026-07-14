@@ -384,7 +384,6 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         final h = page.pdfPage.height; // * 2
 
         await page.preview!.updateRect(
-          documentId: _controller._document!.id,
           width: w.toInt(),
           height: h.toInt(),
           textureWidth: w.toInt(),
@@ -457,7 +456,6 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         final w = (part.width * dpr).toInt();
         final h = (part.height * dpr).toInt();
         await page.realSize!.updateRect(
-          documentId: _controller._document!.id,
           width: w,
           height: h,
           sourceX: (offset.dx * dpr).toInt(),
