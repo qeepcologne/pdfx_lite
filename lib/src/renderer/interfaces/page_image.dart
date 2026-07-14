@@ -3,7 +3,6 @@ part of 'page.dart';
 /// Object containing a rendered image of [PdfPage]
 abstract class PdfPageImage {
   const PdfPageImage({
-    required this.id,
     required this.pageNumber,
     required this.width,
     required this.height,
@@ -11,10 +10,6 @@ abstract class PdfPageImage {
     required this.format,
     required this.quality,
   });
-
-  /// Page unique id. Needed for rendering and closing page.
-  /// Generated when render page.
-  final String? id;
 
   /// Page number. The first page is 1.
   final int pageNumber;
@@ -42,7 +37,6 @@ abstract class PdfPageImage {
 
   @override
   String toString() => '$runtimeType{'
-      'id: $id, '
       'page: $pageNumber,  '
       'width: $width, '
       'height: $height, '

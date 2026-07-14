@@ -64,10 +64,10 @@ abstract class PdfDocument {
       PdfxPlatform.instance.openData(data, password: password);
 
   /// Get page object. The first page is 1.
-  Future<PdfPage> getPage(
-    int pageNumber, {
-    bool autoCloseAndroid = false,
-  });
+  ///
+  /// The returned [PdfPage] holds no native resource and needs no closing — it
+  /// carries the page's size, and every later call re-opens the page by number.
+  Future<PdfPage> getPage(int pageNumber);
 
   @override
   bool operator ==(Object other);

@@ -1,3 +1,36 @@
+## 3.5.0
+
+### Fixed: iOS leaked a `CGPDFPage` for every page ever displayed
+
+The viewer asks for each page with `autoCloseAndroid: true`. Android honoured it — open the page, read its size, close
+it. iOS ignored the flag and registered the page in a repository, while Dart marked the page closed anyway, so
+`closePage` was never sent and `closeDocument` never purged it. Every page a `PdfViewPinch` laid out stayed alive, with
+its document, for the life of the process.
+
+### Pages are no longer handles
+
+The leak was a symptom: Dart was pretending two incompatible native models were one. Android's `PdfRenderer` allows
+only **one open page per document** — a second `openPage` throws `IllegalStateException` — so its texture path never
+held a page and addressed pages by document + number. iOS held `CGPDFPage` handles and addressed them by id.
+
+Both sides now open a page, use it, and close it, within a single call. No page repository, on either platform.
+`Document.withPage` on Android serializes those opens, which the platform requires: without it, a large `render()`
+overlapping texture updates fails **every** update on an Android 14 device (measured; an API 37 emulator tolerates two
+open pages, which is why this hid).
+
+**Breaking** — all of this described a native resource that no longer exists:
+
+| Removed | |
+|---|---|
+| `PdfPage.close()`, `PdfPageAlreadyClosedException` | a page owns nothing to close |
+| `PdfDocument.getPage(n, autoCloseAndroid:)` | the parameter existed to paper over the platform difference |
+| `PdfPage.id`, `PdfPageImage.id` | pages have no id; they are addressed by number |
+
+`PdfPage` is now just its number and size. The document is still closed with `PdfDocument.close()`, as before.
+
+Also drops a dead page cache in `PdfDocumentPigeon`: it was allocated, read, and never written, so every `getPage`
+already re-opened the page natively.
+
 ## 3.4.1
 
 ### Fixed: `Package.swift` did not declare `FlutterFramework`

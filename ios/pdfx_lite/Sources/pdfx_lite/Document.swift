@@ -19,20 +19,22 @@ final class Document: @unchecked Sendable {
 
     /**
      * Open page by page number (not index!)
+     *
+     * The page is not retained anywhere: it is fetched for the duration of one call and dropped, mirroring Android,
+     * where `PdfRenderer` permits only one open page per document and holding one across calls is impossible.
      */
-    public func openPage(pageNumber: Int) -> CGPDFPage? {
-        return renderer.page(at: pageNumber)
+    public func openPage(pageNumber: Int) -> Page? {
+        guard let page = renderer.page(at: pageNumber) else { return nil }
+        return Page(renderer: page)
     }
 }
 
 /// `@unchecked Sendable`: immutable, but wraps a `CGPDFPage`. `render` runs on the background render queue.
 final class Page: @unchecked Sendable {
-    let id: String
     let renderer: CGPDFPage
     let boxRect: CGRect
 
-    init(id: String, renderer: CGPDFPage) {
-        self.id = id
+    init(renderer: CGPDFPage) {
         self.renderer = renderer
         self.boxRect = renderer.getBoxRect(.mediaBox)
     }

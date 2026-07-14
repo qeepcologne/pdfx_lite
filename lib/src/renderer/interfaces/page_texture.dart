@@ -4,15 +4,12 @@ part of 'page.dart';
 abstract class PdfPageTexture {
   const PdfPageTexture({
     required this.id,
-    required this.pageId,
     required this.pageNumber,
   });
 
-  /// Page unique id. Needed for rendering and closing page.
-  /// Generated when render page.
+  /// Texture unique id, from the platform's texture registry.
+  /// Generated when the texture is created.
   final int id;
-
-  final String? pageId;
 
   /// Page number. The first page is 1.
   final int pageNumber;

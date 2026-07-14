@@ -89,7 +89,7 @@ class PdfControllerPinch extends TransformationController
 
       _state!._pages.clear();
       final List<_PdfPageState> pages = [];
-      final firstPage = await _document!.getPage(1, autoCloseAndroid: true);
+      final firstPage = await _document!.getPage(1);
       final firstPageSize = Size(
         firstPage.width,
         firstPage.height,

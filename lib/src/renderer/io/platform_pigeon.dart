@@ -12,6 +12,11 @@ import 'package:pdfx_lite/src/renderer/io/pigeon.dart';
 import 'package:synchronized/synchronized.dart';
 import 'dart:io';
 
+/// Serializes a document's use against its close.
+///
+/// Not for the native side's benefit — both platforms guard their own state. It closes the gap in
+/// `if (isClosed) throw; await _api.something()`: the check and the call sit either side of an `await`, so without
+/// this a `close()` can land between them and the native call arrives at a document that is already gone.
 final _lock = Lock();
 final _api = PdfxApi();
 
@@ -94,9 +99,7 @@ class PdfDocumentPigeon extends PdfDocument {
     required super.sourceName,
     required super.id,
     required super.pagesCount,
-  })  : _pages = List<PdfPage?>.filled(pagesCount, null);
-
-  final List<PdfPage?> _pages;
+  });
 
   @override
   Future<void> close() => _lock.synchronized(() async {
@@ -110,10 +113,7 @@ class PdfDocumentPigeon extends PdfDocument {
 
   /// Get page object. The first page is 1.
   @override
-  Future<PdfPage> getPage(
-    int pageNumber, {
-    bool autoCloseAndroid = false,
-  }) async {
+  Future<PdfPage> getPage(int pageNumber) async {
     if (pageNumber < 1 || pageNumber > pagesCount) {
       throw RangeError.range(pageNumber, 1, pagesCount);
     }
@@ -121,26 +121,18 @@ class PdfDocumentPigeon extends PdfDocument {
       if (isClosed) {
         throw PdfDocumentAlreadyClosedException();
       }
-      var page = _pages[pageNumber - 1];
-      if (page == null) {
-        final result = await _api.getPage(
-          GetPageMessage()
-            ..documentId = id
-            ..pageNumber = pageNumber
-            ..autoCloseAndroid = autoCloseAndroid,
-        );
+      final result = await _api.getPage(
+        GetPageMessage()
+          ..documentId = id
+          ..pageNumber = pageNumber,
+      );
 
-        page = PdfPagePigeon(
-          document: this,
-          id: result.id,
-          pageNumber: pageNumber,
-          width: result.width!,
-          height: result.height!,
-          autoCloseAndroid: autoCloseAndroid,
-        );
-      }
-
-      return page;
+      return PdfPagePigeon(
+        document: this,
+        pageNumber: pageNumber,
+        width: result.width!,
+        height: result.height!,
+      );
     });
   }
 
@@ -155,18 +147,10 @@ class PdfDocumentPigeon extends PdfDocument {
 class PdfPagePigeon extends PdfPage {
   PdfPagePigeon({
     required super.document,
-    required super.id,
     required super.pageNumber,
     required super.width,
     required super.height,
-    required bool autoCloseAndroid,
-  }) : super(
-          autoCloseAndroid: autoCloseAndroid,
-        ) {
-    if (autoCloseAndroid) {
-      isClosed = true;
-    }
-  }
+  });
 
   @override
   Future<PdfPageImage?> render({
@@ -182,12 +166,10 @@ class PdfPagePigeon extends PdfPage {
       _lock.synchronized<PdfPageImage?>(() async {
         if (document.isClosed) {
           throw PdfDocumentAlreadyClosedException();
-        } else if (isClosed) {
-          throw PdfPageAlreadyClosedException();
         }
 
         return PdfPageImagePigeon.render(
-          pageId: id,
+          documentId: document.id,
           pageNumber: pageNumber,
           width: width,
           height: height,
@@ -206,20 +188,9 @@ class PdfPagePigeon extends PdfPage {
 
     return PdfPageTexturePigeon(
       id: result.id!,
-      pageId: id,
       pageNumber: pageNumber,
     );
   }
-
-  @override
-  Future<void> close() => _lock.synchronized(() async {
-        if (isClosed) {
-          throw PdfPageAlreadyClosedException();
-        } else {
-          isClosed = true;
-        }
-        return _api.closePage(IdMessage()..id = id);
-      });
 
   @override
   bool operator ==(Object other) =>
@@ -233,7 +204,6 @@ class PdfPagePigeon extends PdfPage {
 
 class PdfPageImagePigeon extends PdfPageImage {
   PdfPageImagePigeon({
-    required super.id,
     required super.pageNumber,
     required super.width,
     required super.height,
@@ -251,7 +221,7 @@ class PdfPageImagePigeon extends PdfPageImage {
   /// [crop] - render only the necessary part of the image
   /// [quality] - hint to the JPEG and WebP compression algorithms (0-100)
   static Future<PdfPageImage?> render({
-    required String? pageId,
+    required String documentId,
     required int pageNumber,
     required double width,
     required double height,
@@ -277,7 +247,8 @@ class PdfPageImagePigeon extends PdfPageImage {
         (format == PdfPageImageFormat.jpeg) ? '#FFFFFF' : '#00FFFFFF';
 
     final result = await _api.renderPage(RenderPageMessage()
-      ..pageId = pageId
+      ..documentId = documentId
+      ..pageNumber = pageNumber
       ..width = width.toInt()
       ..height = height.toInt()
       ..format = format.value
@@ -302,7 +273,6 @@ class PdfPageImagePigeon extends PdfPageImage {
     );
 
     return PdfPageImagePigeon(
-      id: pageId,
       pageNumber: pageNumber,
       width: retWidth,
       height: retHeight,
@@ -318,13 +288,12 @@ class PdfPageImagePigeon extends PdfPageImage {
       other.bytes.lengthInBytes == bytes.lengthInBytes;
 
   @override
-  int get hashCode => identityHashCode(id) ^ pageNumber;
+  int get hashCode => Object.hash(pageNumber, bytes.lengthInBytes);
 }
 
 class PdfPageTexturePigeon extends PdfPageTexture {
   PdfPageTexturePigeon({
     required super.id,
-    required super.pageId,
     required super.pageNumber,
   });
 
@@ -365,7 +334,6 @@ class PdfPageTexturePigeon extends PdfPageTexture {
         ..documentId = documentId
         ..pageNumber = pageNumber
         ..textureId = id
-        ..pageId = pageId
         ..destinationX = destinationX
         ..destinationY = destinationY
         ..width = width
@@ -388,12 +356,11 @@ class PdfPageTexturePigeon extends PdfPageTexture {
   }
 
   @override
-  int get hashCode => identityHashCode(id) ^ pageNumber;
+  int get hashCode => Object.hash(id, pageNumber);
 
   @override
   bool operator ==(Object other) =>
       other is PdfPageTexturePigeon &&
       other.id == id &&
-      other.pageId == pageId &&
       other.pageNumber == pageNumber;
 }

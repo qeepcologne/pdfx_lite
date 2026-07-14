@@ -31,20 +31,21 @@ class IdMessage {
   String? id;
 }
 
+/// Pages are addressed by document + number, never by a handle. Android's `PdfRenderer` allows only one open page per
+/// document at a time, so no page can be held across calls; each side opens the page, does the work, and closes it.
 class GetPageMessage {
   String? documentId;
   int? pageNumber;
-  bool? autoCloseAndroid;
 }
 
 class GetPageReply {
-  String? id;
   double? width;
   double? height;
 }
 
 class RenderPageMessage {
-  String? pageId;
+  String? documentId;
+  int? pageNumber;
   int? width;
   int? height;
   int? format;
@@ -71,11 +72,8 @@ class RegisterTextureReply {
 }
 
 class UpdateTextureMessage {
-  // For android
   String? documentId;
   int? pageNumber;
-  // For ios
-  String? pageId;
   int? textureId;
   int? width;
   int? height;
@@ -120,7 +118,6 @@ abstract class PdfxApi {
   GetPageReply getPage(GetPageMessage message);
   @async
   RenderPageReply renderPage(RenderPageMessage message);
-  void closePage(IdMessage message);
 
   RegisterTextureReply registerTexture();
   @async

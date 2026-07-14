@@ -14,8 +14,8 @@ import android.view.Surface
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.view.TextureRegistry
 import io.flutter.view.TextureRegistry.SurfaceProducer.Callback
+import io.scer.pdfx.document.renderToFile
 import io.scer.pdfx.resources.DocumentRepository
-import io.scer.pdfx.resources.PageRepository
 import io.scer.pdfx.resources.RepositoryItemNotFoundException
 import io.scer.pdfx.utils.randomFilename
 import io.scer.pdfx.utils.toFile
@@ -72,8 +72,7 @@ class PasswordUnsupportedException : Exception()
 class CreateRendererException : Exception()
 
 class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
-               private val documents: DocumentRepository,
-               private val pages: PageRepository) : PdfxApi {
+               private val documents: DocumentRepository) : PdfxApi {
 
     private val surfaceProducers: SparseArray<TextureRegistry.SurfaceProducer> = SparseArray()
     private val documentStatesPerSurface: SparseArray<UpdateTextureMessage> = SparseArray()
@@ -199,18 +198,8 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             val documentId = message.documentId!!
             val pageNumber = message.pageNumber!!.toInt()
 
-            val reply = if (message.autoCloseAndroid!!) {
-                documents.get(documentId).openPage(pageNumber).use { page ->
-                    GetPageReply(
-                        width = page.width.toDouble(),
-                        height = page.height.toDouble(),
-                    )
-                }
-            } else {
-                val pageRenderer = documents.get(documentId).openPage(pageNumber)
-                val page = pages.register(pageRenderer)
+            val reply = documents.get(documentId).withPage(pageNumber) { page ->
                 GetPageReply(
-                    id = page.id,
                     width = page.width.toDouble(),
                     height = page.height.toDouble(),
                 )
@@ -232,8 +221,13 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
     ) {
         scope.launch {
             try {
-                val pageId = message.pageId ?: run {
-                    callback(Result.failure(FlutterError(CHANNEL, "Page ID is null")))
+                val documentId = message.documentId ?: run {
+                    callback(Result.failure(FlutterError(CHANNEL, "Document ID is null")))
+                    return@launch
+                }
+
+                val pageNumber = message.pageNumber?.toInt() ?: run {
+                    callback(Result.failure(FlutterError(CHANNEL, "Page number is null")))
                     return@launch
                 }
 
@@ -260,8 +254,6 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 val quality = message.quality?.toInt() ?: 100
                 val forPrint = message.forPrint ?: false
 
-                val page = pages.get(pageId)
-
                 val tempOutFileExtension = when (format) {
                     0 -> "jpg"
                     1 -> "png"
@@ -276,20 +268,22 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 val tempOutFile = File(tempOutFolder, "$randomFilename.$tempOutFileExtension")
 
                 //  background thread render
-                val pageImage = page.render(
-                    file = tempOutFile,
-                    width = width,
-                    height = height,
-                    background = color,
-                    format = format,
-                    crop = crop,
-                    cropX = cropX,
-                    cropY = cropY,
-                    cropW = cropW,
-                    cropH = cropH,
-                    quality = quality,
-                    forPrint = forPrint,
-                )
+                val pageImage = documents.get(documentId).withPage(pageNumber) { page ->
+                    page.renderToFile(
+                        file = tempOutFile,
+                        width = width,
+                        height = height,
+                        background = color,
+                        format = format,
+                        crop = crop,
+                        cropX = cropX,
+                        cropY = cropY,
+                        cropW = cropW,
+                        cropH = cropH,
+                        quality = quality,
+                        forPrint = forPrint,
+                    )
+                }
 
                 withContext(Dispatchers.Main) {
                     callback(Result.success(RenderPageReply(
@@ -303,18 +297,6 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                     callback(Result.failure(FlutterError(CHANNEL, "Unexpected error", e.toString())))
                 }
             }
-        }
-    }
-
-    override fun closePage(message: IdMessage) {
-        try {
-            pages.close(message.id!!)
-        } catch (e: NullPointerException) {
-            throw FlutterError(CHANNEL, "Need call arguments: id!")
-        } catch (e: RepositoryItemNotFoundException) {
-            throw FlutterError(CHANNEL, "Page not exist in pages repository")
-        } catch (e: Exception) {
-            throw FlutterError(CHANNEL, "Unknown error")
         }
     }
 
@@ -364,7 +346,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
     ) {
         val pageNumber = message.pageNumber!!.toInt()
         val document = documents.get(message.documentId!!)
-        document.openPage(pageNumber).use { page ->
+        document.withPage(pageNumber) { page ->
             val fullWidth = message.fullWidth ?: page.width.toDouble()
             val fullHeight = message.fullHeight ?: page.height.toDouble()
             val destX = message.destinationX!!.toInt()

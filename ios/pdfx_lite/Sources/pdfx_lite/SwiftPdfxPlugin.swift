@@ -44,7 +44,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
     let dispQueue = DispatchQueue(label: "io.scer.pdf_renderer")
 
     let documents = DocumentRepository()
-    let pages = PageRepository()
     var textures: [Int64: PdfPageTexture] = [:]
 
     init(registrar: FlutterPluginRegistrar) {
@@ -123,13 +122,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
             return completion(.failure(renderError("Need call arguments: documentId & pageNumber")))
         }
         do {
-            guard let renderer = try documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
-                return completion(.failure(renderError("Unexpected error: renderer is nil.")))
+            guard let page = try documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+                return completion(.failure(renderError("No page \(pageNumber) in document")))
             }
 
-            let page = pages.register(renderer: renderer)
             completion(.success(GetPageReply(
-                id: page.id,
                 width: page.width,
                 height: page.height
             )))
@@ -139,7 +136,8 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
     }
 
     func renderPage(message: RenderPageMessage, completion: @escaping (Result<RenderPageReply, Error>) -> Void) {
-        guard let pageId = message.pageId,
+        guard let documentId = message.documentId,
+              let pageNumber = message.pageNumber,
               let width = message.width,
               let height = message.height,
               let format = message.format,
@@ -171,7 +169,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
 
         dispQueue.async {
             do {
-                let page = try self.pages.get(id: pageId)
+                guard let page = try self.documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+                    return DispatchQueue.main.async {
+                        boxed.value(.failure(renderError("No page \(pageNumber) in document")))
+                    }
+                }
                 guard let data = page.render(
                     width: Int(width),
                     height: Int(height),
@@ -198,12 +200,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
                     boxed.value(.failure(renderError("Unexpected error: \(error).")))
                 }
             }
-        }
-    }
-
-    func closePage(message: IdMessage) throws {
-        if let id = message.id {
-            pages.close(id: id)
         }
     }
 
@@ -238,8 +234,8 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         guard let texId = message.textureId, let pageTex = textures[texId] else {
             return completion(.failure(renderError("No texture of texId=\(String(describing: message.textureId))")))
         }
-        guard let pageId = message.pageId else {
-            return completion(.failure(renderError("Need call arguments: pageId")))
+        guard let documentId = message.documentId, let pageNumber = message.pageNumber else {
+            return completion(.failure(renderError("Need call arguments: documentId & pageNumber")))
         }
 
         if let tw = message.textureWidth, let th = message.textureHeight {
@@ -251,7 +247,9 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
 
         do {
-            let page = try pages.get(id: pageId)
+            guard let page = try documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+                return completion(.failure(renderError("No page \(pageNumber) in document")))
+            }
 
             try pageTex.updateTex(
                 page: page.renderer,

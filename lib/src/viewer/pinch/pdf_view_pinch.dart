@@ -370,10 +370,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
       if (page.status == _PdfPageLoadingStatus.notInitialized) {
         page
           ..status = _PdfPageLoadingStatus.initializing
-          ..pdfPage = await _controller._document!.getPage(
-            page.pageNumber,
-            autoCloseAndroid: true,
-          );
+          ..pdfPage = await _controller._document!.getPage(page.pageNumber);
         final prevPageSize = page.pageSize;
         page
           ..pageSize = Size(page.pdfPage.width, page.pdfPage.height)

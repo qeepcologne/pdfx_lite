@@ -35,21 +35,21 @@ enum PdfPageImageFormat {
 
 /// An integral part of a document is its page,
 /// which contains a method [render] for rendering into an image
+///
+/// A page holds no native resource and needs no closing: [render] and
+/// [PdfPageTexture.updateRect] each open the page natively, use it, and close
+/// it again. Android leaves no choice — `PdfRenderer` permits only one open
+/// page per document — and iOS follows the same shape so the two match.
+/// The object is just the page's number and its size.
 abstract class PdfPage {
   PdfPage({
     required this.document,
-    required this.id,
     required this.pageNumber,
     required this.width,
     required this.height,
-    required this.autoCloseAndroid,
   });
 
   final PdfDocument document;
-
-  /// Page unique id. Needed for rendering and closing page.
-  /// Generated when opening page.
-  final String? id;
 
   /// Page number in document.
   /// Starts from 1.
@@ -60,11 +60,6 @@ abstract class PdfPage {
 
   /// Page source height in pixels
   final double height;
-
-  final bool autoCloseAndroid;
-
-  /// Is the page closed
-  bool isClosed = false;
 
   /// Render a full image of specified PDF file.
   ///
@@ -90,11 +85,6 @@ abstract class PdfPage {
   /// calling `dispose` method after use it.
   Future<PdfPageTexture> createTexture();
 
-  /// Before open another page it is necessary to close the previous.
-  ///
-  /// The android platform does not allow parallel rendering.
-  Future<void> close();
-
   @override
   bool operator ==(Object other);
 
@@ -107,9 +97,4 @@ abstract class PdfPage {
       'page: $pageNumber,  '
       'width: $width, '
       'height: $height}';
-}
-
-class PdfPageAlreadyClosedException implements Exception {
-  @override
-  String toString() => '$runtimeType: Page already closed';
 }

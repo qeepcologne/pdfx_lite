@@ -10,7 +10,7 @@ before fixing** — several may already be dead, or may not be ours to fix.
 
 | # | Report | Where to look | Repro needed |
 |---|---|---|---|
-| #554 | iOS: aspect-ratio distortion on landscape PDFs — **do this one first**, it decides the PDFKit question in §2 | `ios/.../Document.swift:58,66` — `isLandscape` swaps width/height and feeds the drawing transform | A rotated / landscape page on iOS, compared against the same page on Android |
+| #554 | iOS: aspect-ratio distortion on landscape PDFs — **do this one first**, it decides the PDFKit question in §2 | `ios/.../Document.swift` — `isLandscape` swaps width/height and feeds the drawing transform | A rotated / landscape page on iOS, compared against the same page on Android |
 | #560 | Android: blurry/broken text since Flutter 3.27 | `Messages.kt` `onDocumentOrSurfaceChanged` — the texture `Matrix` is built from `fullWidth / page.width` | High-DPI device; suspect we render at texture size, not device pixel ratio |
 | #585 | Blurry text when pinch-zooming in landscape | same texture path as #560 — probably the same bug | Zoom in hard on a landscape page |
 | #532 | Wrong height returned for certain documents | `getPage` returns the native renderer's `width`/`height` verbatim | Needs the reporter's PDF |

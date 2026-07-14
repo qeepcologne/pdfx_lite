@@ -2,18 +2,16 @@ package io.scer.pdfx
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.scer.pdfx.resources.DocumentRepository
-import io.scer.pdfx.resources.PageRepository
 
 /**
  * PdfxPlugin
  */
 class PdfxPlugin : FlutterPlugin {
     private val documents = DocumentRepository()
-    private val pages = PageRepository()
     private var messages: Messages? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        val messages = Messages(flutterPluginBinding, documents, pages)
+        val messages = Messages(flutterPluginBinding, documents)
         this.messages = messages
         PdfxApi.setUp(flutterPluginBinding.binaryMessenger, messages)
     }
@@ -23,7 +21,5 @@ class PdfxPlugin : FlutterPlugin {
         messages?.dispose()
         messages = null
         documents.clear()
-        pages.clear()
     }
 }
-

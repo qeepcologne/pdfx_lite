@@ -13,7 +13,7 @@ Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 
 ```yaml
 dependencies:
-  pdfx_lite: ^3.4.1
+  pdfx_lite: ^3.5.0
 ```
 
 ```dart
@@ -34,6 +34,8 @@ PdfViewPinch(controller: controller);
 3. **Drop `hasPdfSupport()`** — it was hardcoded `true`.
 4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
    the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
+5. **Drop `page.close()` and `getPage(autoCloseAndroid:)`** — a `PdfPage` holds no native resource. Only the document
+   is closed.
 
 ## Encrypted PDFs
 
