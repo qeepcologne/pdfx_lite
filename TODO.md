@@ -10,62 +10,19 @@ before fixing** — several may already be dead, or may not be ours to fix.
 
 | # | Report | Where to look | Repro needed |
 |---|---|---|---|
-| #554 | iOS: aspect-ratio distortion on landscape PDFs — **do this one first**, it decides the PDFKit question in §3 | `ios/.../Document.swift:58,66` — `isLandscape` swaps width/height and feeds the drawing transform | A rotated / landscape page on iOS, compared against the same page on Android |
+| #554 | iOS: aspect-ratio distortion on landscape PDFs — **do this one first**, it decides the PDFKit question in §2 | `ios/.../Document.swift:58,66` — `isLandscape` swaps width/height and feeds the drawing transform | A rotated / landscape page on iOS, compared against the same page on Android |
 | #560 | Android: blurry/broken text since Flutter 3.27 | `Messages.kt` `onDocumentOrSurfaceChanged` — the texture `Matrix` is built from `fullWidth / page.width` | High-DPI device; suspect we render at texture size, not device pixel ratio |
 | #585 | Blurry text when pinch-zooming in landscape | same texture path as #560 — probably the same bug | Zoom in hard on a landscape page |
 | #532 | Wrong height returned for certain documents | `getPage` returns the native renderer's `width`/`height` verbatim | Needs the reporter's PDF |
 | #557 | Cyrillic characters not displayed on Android | Platform `PdfRenderer` font embedding — quite possibly **not ours** | Needs the reporter's PDF |
 
-## 2. Password / encrypted PDFs — done in 3.4.0, except API 30–34 · #600, #618, #550
-
-**Landed.** Detection in 3.3.0 (`PdfPasswordProtectedException` instead of "Unknown error" / "Invalid PDF format");
-`password:` itself in 3.4.0 — iOS on every version we support, Android from API 35. Below that, supplying a password
-for a document that genuinely needs one throws `PdfPasswordUnsupportedException`, and `PdfDocument.isPasswordSupported()`
-lets a caller ask up front rather than prompting for a password it cannot use. It is *not* silently ignored: that was
-the original sin that got `password:` removed in 3.0.0.
-
-### What is left: Android API 30–34
-
-`PdfRenderer(fd, LoadParams)` is API 35+. The platform *does* expose the same capability further back, through
-**`android.graphics.pdf.PdfRendererPreV`** (API 30–34) — but it is a **separate class with its own incompatible
-`Page` type** (`render` takes a `RenderParams`, not an int mode; different `openPage` return type). It is not a
-drop-in: `Document.kt`, `DocumentRepository`, and both render paths in `Messages.kt` are typed on `PdfRenderer` /
-`PdfRenderer.Page` throughout, so taking it means abstracting the entire Android render path over two renderer
-hierarchies — for encrypted PDFs alone.
-
-Not worth it speculatively. Do it if real users on Android 11–14 turn out to need encrypted PDFs; until then
-`isPasswordSupported()` reports false there and callers can fall back.
-
-*(Earlier note in this file claimed an `SdkExtensions.getExtensionVersion(S) >= 13` gate on `PdfRenderer` itself.
-That was wrong — there is no extension backport of the `LoadParams` constructor; `PdfRendererPreV` is the mechanism,
-and it is a different class.)*
-
-### Verifying it
-
-`example/lib/password_probe.dart` runs the full matrix — 3 sources (asset/file/data) × 3 fixtures × 3 passwords —
-and prints one line per case:
-
-```
-cd example && flutter run -t lib/password_probe.dart -d <device>
-```
-
-Fixtures are `assets/locked.pdf` (user password `secret`) and `assets/perms_only.pdf` (empty user password,
-permissions-restricted — the invoice/statement shape, which must open with *no* password). Regenerate with:
-
-```
-qpdf --encrypt --user-password=secret --owner-password=owner --bits=256 -- assets/hello.pdf assets/locked.pdf
-qpdf --encrypt --user-password= --owner-password=owner --bits=256 --print=none --modify=none -- assets/hello.pdf assets/perms_only.pdf
-```
-
-Verified on API 24 and API 37. **Not yet run on iOS** — doing so is the outstanding check on the Swift.
-
-## 3. Annotations are not rendered — on either platform · #592, #584
+## 2. Annotations are not rendered — on either platform · #592, #584
 
 Bigger than it looks. Neither side draws annotations today, and the fixes are unrelated:
 
 - **Android** — `Page.kt:25` and `Messages.kt:325` hardcode `RENDER_MODE_FOR_DISPLAY`, which skips annotations.
   Android 15 added `RenderParams` with `FLAG_RENDER_HIGHLIGHT_ANNOTATIONS` / `FLAG_RENDER_TEXT_ANNOTATIONS` — so this
-  half carries the same **API 35** gate as §2.
+  half is gated on **API 35**, and would simply not render annotations below it.
 - **iOS** — we draw with Core Graphics (`context.drawPDFPage`, `Document.swift:100` and `SwiftPdfxPlugin.swift:358`),
   which renders the page content stream only; annotations are separate PDF objects and are skipped. Rendering them
   means moving to **PDFKit** (`PDFPage.draw(with:to:)`) — available since iOS 11, so on every version we support, but
@@ -78,10 +35,11 @@ So: Android is blocked on Android 15, iOS is a rewrite. Do neither speculatively
 Probably, eventually — but it needs a driver, and **#554 is the experiment that decides it.**
 
 PDFKit is Apple's modern PDF API (`CGPDFDocument` is the low-level legacy one). It would render annotations, links and
-form fields, and open encrypted documents (`PDFDocument.unlock(withPassword:)`) — settling the iOS half of both §2 and
-§3 in one move. It also handles page rotation and display boxes itself, which is *exactly* the hand-rolled
-`isLandscape` / `getDrawingTransform` code that #554 blames. So if #554 reproduces, PDFKit stops being a speculative
-modernisation and becomes the fix for a confirmed bug, with annotations and password support riding along.
+form fields. It also handles page rotation and display boxes itself, which is *exactly* the hand-rolled `isLandscape` /
+`getDrawingTransform` code that #554 blames. So if #554 reproduces, PDFKit stops being a speculative modernisation and
+becomes the fix for a confirmed bug, with annotations riding along.
+
+(It would *not* buy encrypted-document support — `CGPDFDocument.unlockWithPassword` already gives us that on iOS.)
 
 Against it, today:
 
@@ -90,14 +48,14 @@ Against it, today:
    — for a cross-platform plugin that is arguably worse than both being equally limited.
 2. **It is a rewrite of the half we cannot compile locally** — both the image path (`Document.swift`) and the texture
    path (`SwiftPdfxPlugin.updateTex`) go through `drawPDFPage`.
-3. **Nothing needs it.** No caller here wants annotations or encrypted PDFs.
+3. **Nothing needs it.** No caller here wants annotations.
 
 If it is ever done: `PDFDocument` is **not thread-safe** for concurrent access, and `renderPage` runs on `dispQueue` —
 the draw has to stay serialised (the `Repository` lock covers the lookup, not the render).
 
 ---
 
-## 4. Do not take
+## 3. Do not take
 
 - **PR #594 "Expose `InteractiveViewer` onInteraction-methods"** — a *feature* PR, not a bug: nothing is broken. It
   adds three nullable callbacks that do nothing unless a caller passes them. Speculative public API for someone else's
