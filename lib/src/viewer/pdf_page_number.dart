@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:pdfx_lite/src/viewer/base/base_pdf_controller.dart';
+import 'package:pdfx_lite/src/viewer/pdf_view_pinch.dart';
 
 typedef PdfPageNumberBuilder = Widget Function(
   BuildContext context,
@@ -15,7 +15,7 @@ class PdfPageNumber extends StatelessWidget {
     super.key,
   });
 
-  final BasePdfController controller;
+  final PdfControllerPinch controller;
   final PdfPageNumberBuilder builder;
 
   @override

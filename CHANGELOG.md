@@ -1,3 +1,24 @@
+## 3.6.0
+
+### Dropped two abstractions with one implementor each
+
+Both were upstream's, and both were load-bearing there — for platforms and viewers this fork no longer has.
+
+**`renderer/interfaces/` + `renderer/io/`** was a platform-interface split: an abstract `PdfxPlatform` /
+`PdfDocument` / `PdfPage`, and a `…Pigeon` subclass of each. It let web and desktop bring their own renderers. With
+Android and iOS both served by the one pigeon bridge, it had a single implementor. The renderer is now one library
+across four flat files, and the classes are concrete.
+
+**`viewer/base/`** held what upstream shared between its two viewers. `PdfView` is gone, so `BasePdfController` — the
+mixin that let `PdfPageNumber` accept either controller — described a set of one. `PdfPageNumber` now takes a
+`PdfControllerPinch` directly; `PdfLoadingState` lives with that controller and `DefaultBuilderOptions` with the
+builders. `PdfTexture`, a five-line function that renamed Flutter's `Texture`, is gone with the web and Windows
+implementations that needed the indirection.
+
+No behaviour changed. **Breaking** only for `BasePdfController` (removed) and for anyone extending `PdfDocument`,
+`PdfPage`, `PdfPageImage` or `PdfPageTexture`, whose constructors are now private — they are created by the plugin,
+never by a caller. `PdfxPlatform` was never exported. Every other public name is unchanged.
+
 ## 3.5.0
 
 ### Fixed: iOS leaked a `CGPDFPage` for every page ever displayed

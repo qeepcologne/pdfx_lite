@@ -1,15 +1,13 @@
 part of 'pdf_view_pinch.dart';
 
 /// Pages control
-class PdfControllerPinch extends TransformationController
-    with BasePdfController {
+class PdfControllerPinch extends TransformationController {
   PdfControllerPinch({
     required this.document,
     this.initialPage = 1,
     this.viewportFraction = 1.0,
   }) : assert(viewportFraction > 0.0);
 
-  @override
   final ValueNotifier<PdfLoadingState> loadingState =
       ValueNotifier(PdfLoadingState.loading);
 
@@ -43,12 +41,10 @@ class PdfControllerPinch extends TransformationController
   double get documentProgress => _documentProgress;
 
   /// Actual page number wrapped with ValueNotifier
-  @override
   late final ValueNotifier<int> pageListenable = ValueNotifier(initialPage);
 
   /// Get the current page number by obtaining
   /// the page that has the largest area from [visiblePages].
-  @override
   int get page {
     MapEntry<int, double>? max;
     for (final v in visiblePages.entries) {
@@ -61,7 +57,6 @@ class PdfControllerPinch extends TransformationController
 
   late int _prevPage = initialPage;
 
-  @override
   int? get pagesCount => _document?.pagesCount;
 
   /// Get page location. If the page is out of view,
@@ -348,4 +343,11 @@ class _PdfPageState {
     _previewNotifier.dispose();
     _realSizeNotifier.dispose();
   }
+}
+
+/// Where a [PdfControllerPinch] is in loading its document.
+enum PdfLoadingState {
+  loading,
+  error,
+  success,
 }

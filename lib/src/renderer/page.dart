@@ -1,13 +1,4 @@
-import 'dart:async';
-import 'dart:typed_data' show Uint8List;
-import 'dart:ui';
-
-import 'package:meta/meta.dart';
-
-import 'document.dart';
-
-part 'page_image.dart';
-part 'page_texture.dart';
+part of 'renderer.dart';
 
 /// Image compression format
 enum PdfPageImageFormat {
@@ -41,8 +32,8 @@ enum PdfPageImageFormat {
 /// it again. Android leaves no choice — `PdfRenderer` permits only one open
 /// page per document — and iOS follows the same shape so the two match.
 /// The object is just the page's number and its size.
-abstract class PdfPage {
-  PdfPage({
+class PdfPage {
+  PdfPage._({
     required this.document,
     required this.pageNumber,
     required this.width,
@@ -79,17 +70,42 @@ abstract class PdfPage {
     int quality = 100,
     bool forPrint = false,
     @visibleForTesting bool removeTempFile = true,
-  });
+  }) =>
+      _lock.synchronized<PdfPageImage?>(() async {
+        if (document.isClosed) {
+          throw PdfDocumentAlreadyClosedException();
+        }
+
+        return PdfPageImage._render(
+          documentId: document.id,
+          pageNumber: pageNumber,
+          width: width,
+          height: height,
+          format: format,
+          backgroundColor: backgroundColor,
+          crop: cropRect,
+          quality: quality,
+          forPrint: forPrint,
+          removeTempFile: removeTempFile,
+        );
+      });
 
   /// Create a new Flutter `Texture`. The object should be released by
   /// calling `dispose` method after use it.
-  Future<PdfPageTexture> createTexture();
+  Future<PdfPageTexture> createTexture() async {
+    final result = await _api.registerTexture();
+
+    return PdfPageTexture._(id: result.id!, pageNumber: pageNumber);
+  }
 
   @override
-  bool operator ==(Object other);
+  bool operator ==(Object other) =>
+      other is PdfPage &&
+      other.document.hashCode == document.hashCode &&
+      other.pageNumber == pageNumber;
 
   @override
-  int get hashCode;
+  int get hashCode => document.hashCode ^ pageNumber;
 
   @override
   String toString() => '$runtimeType{'

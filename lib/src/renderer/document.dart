@@ -1,13 +1,8 @@
-import 'dart:async';
-import 'dart:typed_data' show Uint8List;
-
-import 'package:pdfx_lite/src/renderer/interfaces/platform.dart';
-
-import 'page.dart';
+part of 'renderer.dart';
 
 /// PDF page image renderer
-abstract class PdfDocument {
-  PdfDocument({
+class PdfDocument {
+  PdfDocument._({
     required this.sourceName,
     required this.id,
     required this.pagesCount,
@@ -28,15 +23,12 @@ abstract class PdfDocument {
   /// Is the document closed
   bool isClosed = false;
 
-  Future<void> close();
-
   /// Whether this device can open encrypted PDFs at all.
   ///
   /// Always true on iOS. On Android it is true only from **API 35** (Android
   /// 15) — see [PdfPasswordUnsupportedException]. Ask this *before* prompting
   /// the user for a password, so you do not collect one that cannot be used.
-  static Future<bool> isPasswordSupported() =>
-      PdfxPlatform.instance.isPasswordSupported();
+  static Future<bool> isPasswordSupported() => _api.isPasswordSupported();
 
   /// Opening the specified file.
   ///
@@ -46,13 +38,23 @@ abstract class PdfDocument {
   /// [PdfPasswordUnsupportedException] if [password] is non-null on a device
   /// that cannot use one ([isPasswordSupported]).
   static Future<PdfDocument> openFile(String filePath, {String? password}) =>
-      PdfxPlatform.instance.openFile(filePath, password: password);
+      _open(
+        _api.openDocumentFile(OpenPathMessage()
+          ..path = filePath
+          ..password = password),
+        'file:$filePath',
+      );
 
   /// Opening the specified asset.
   ///
   /// See [openFile] for [password] and the exceptions it can throw.
   static Future<PdfDocument> openAsset(String name, {String? password}) =>
-      PdfxPlatform.instance.openAsset(name, password: password);
+      _open(
+        _api.openDocumentAsset(OpenPathMessage()
+          ..path = name
+          ..password = password),
+        'asset:$name',
+      );
 
   /// Opening the PDF on memory.
   ///
@@ -60,20 +62,80 @@ abstract class PdfDocument {
   static Future<PdfDocument> openData(
     FutureOr<Uint8List> data, {
     String? password,
-  }) =>
-      PdfxPlatform.instance.openData(data, password: password);
+  }) async =>
+      _open(
+        _api.openDocumentData(OpenDataMessage()
+          ..data = await data
+          ..password = password),
+        'memory:binary',
+      );
+
+  /// Awaits an open, mapping the native password codes to typed exceptions. Every other failure stays a
+  /// [PlatformException] — this only rescues the cases a caller can act on.
+  static Future<PdfDocument> _open(
+    Future<OpenReply> reply,
+    String sourceName,
+  ) async {
+    final OpenReply result;
+    try {
+      result = await reply;
+    } on PlatformException catch (e) {
+      switch (e.code) {
+        case _passwordProtectedCode:
+          throw PdfPasswordProtectedException(sourceName);
+        case _passwordUnsupportedCode:
+          throw PdfPasswordUnsupportedException(sourceName);
+      }
+      rethrow;
+    }
+    return PdfDocument._(
+      sourceName: sourceName,
+      id: result.id!,
+      pagesCount: result.pagesCount!,
+    );
+  }
+
+  Future<void> close() => _lock.synchronized(() async {
+        if (isClosed) {
+          throw PdfDocumentAlreadyClosedException();
+        } else {
+          isClosed = true;
+        }
+        return _api.closeDocument(IdMessage()..id = id);
+      });
 
   /// Get page object. The first page is 1.
   ///
   /// The returned [PdfPage] holds no native resource and needs no closing — it
   /// carries the page's size, and every later call re-opens the page by number.
-  Future<PdfPage> getPage(int pageNumber);
+  Future<PdfPage> getPage(int pageNumber) async {
+    if (pageNumber < 1 || pageNumber > pagesCount) {
+      throw RangeError.range(pageNumber, 1, pagesCount);
+    }
+    return _lock.synchronized<PdfPage>(() async {
+      if (isClosed) {
+        throw PdfDocumentAlreadyClosedException();
+      }
+      final result = await _api.getPage(
+        GetPageMessage()
+          ..documentId = id
+          ..pageNumber = pageNumber,
+      );
+
+      return PdfPage._(
+        document: this,
+        pageNumber: pageNumber,
+        width: result.width!,
+        height: result.height!,
+      );
+    });
+  }
 
   @override
-  bool operator ==(Object other);
+  bool operator ==(Object other) => other is PdfDocument && other.id == id;
 
   @override
-  int get hashCode;
+  int get hashCode => identityHashCode(id);
 
   @override
   String toString() =>

@@ -2,11 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
-import 'package:pdfx_lite/src/renderer/interfaces/document.dart';
-import 'package:pdfx_lite/src/renderer/interfaces/page.dart';
-import 'package:pdfx_lite/src/viewer/base/base_pdf_builders.dart';
-import 'package:pdfx_lite/src/viewer/base/base_pdf_controller.dart';
-import 'package:pdfx_lite/src/viewer/pdf_texture.dart';
+import 'package:pdfx_lite/src/renderer/renderer.dart';
 import 'package:vector_math/vector_math_64.dart' as math64;
 
 export 'package:pdfx_lite/src/viewer/pdf_page_image_provider.dart';
@@ -614,7 +610,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
                   valueListenable: page._previewNotifier,
                   builder: (context, value, child) => page.preview != null
                       ? Positioned.fill(
-                          child: PdfTexture(textureId: page.preview!.id),
+                          child: Texture(textureId: page.preview!.id),
                         )
                       : Container(),
                 ),
@@ -627,7 +623,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
                               top: page.realSizeOverlayRect!.top,
                               width: page.realSizeOverlayRect!.width,
                               height: page.realSizeOverlayRect!.height,
-                              child: PdfTexture(textureId: page.realSize!.id),
+                              child: Texture(textureId: page.realSize!.id),
                             )
                           : Container(),
                 ),

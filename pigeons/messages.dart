@@ -3,7 +3,7 @@ import 'package:pigeon/pigeon.dart';
 /// Regenerate all three sides with:
 ///   dart run pigeon --input pigeons/messages.dart
 @ConfigurePigeon(PigeonOptions(
-  dartOut: 'lib/src/renderer/io/pigeon.dart',
+  dartOut: 'lib/src/renderer/pigeon.dart',
   kotlinOut: 'android/src/main/kotlin/io/scer/pdfx/Pigeon.g.kt',
   kotlinOptions: KotlinOptions(
     package: 'io.scer.pdfx',

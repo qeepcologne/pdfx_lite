@@ -1,5 +1,19 @@
 part of 'pdf_view_pinch.dart';
 
+/// Options for the default [PdfViewPinchBuilders.builder].
+class DefaultBuilderOptions {
+  const DefaultBuilderOptions({
+    this.loaderSwitchDuration = const Duration(seconds: 1),
+    this.transitionBuilder = DefaultBuilderOptions._transitionBuilder,
+  });
+
+  final Duration loaderSwitchDuration;
+  final AnimatedSwitcherTransitionBuilder transitionBuilder;
+
+  static Widget _transitionBuilder(Widget child, Animation<double> animation) =>
+      FadeTransition(opacity: animation, child: child);
+}
+
 typedef PdfViewPinchBuilder<T> = Widget Function(
   /// Build context
   BuildContext context,
