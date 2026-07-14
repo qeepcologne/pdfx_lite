@@ -1,3 +1,26 @@
+## 3.4.1
+
+### Fixed: iOS could not build at all
+
+`Package.swift` did not declare a dependency on `FlutterFramework`. Flutter has required SPM plugins to declare it
+explicitly since 3.35 rather than injecting it, and without it the build stops **before compiling a line of Swift**:
+
+```
+Plugin pdfx_lite has a Package.swift for ios but is missing a dependency on FlutterFramework.
+```
+
+Every release up to and including 3.4.0 is affected — the plugin's iOS half was unbuildable against any Flutter this
+package supports (`>=3.44`). It went unnoticed because the plugin is developed on Linux, where there is no iOS build
+to fail. No Swift source changed; only the package manifest.
+
+If you are on iOS, upgrade to this release. Note that the host app must have SPM enabled — see the README.
+
+### Verified on iOS
+
+`example/lib/password_probe.dart` now passes on iOS, giving the same 21 × `OK` / 6 × `PdfPasswordProtectedException` /
+0 × `PdfPasswordUnsupportedException` as Android — which is the point of the fallback semantics: `password:` behaves
+identically on both platforms. The 3.3.0 and 3.4.0 Swift is therefore compiled and exercised, not merely reviewed.
+
 ## 3.4.0
 
 ### `password:` is back — and actually read
@@ -21,8 +44,8 @@ Android reports both as a single `SecurityException`.
 
 ### Testing
 
-`example/lib/password_probe.dart` (3 sources × 3 fixtures × 3 passwords), on **API 24** and **API 37**. Not run on
-iOS — the Swift is reviewed, not compiled.
+`example/lib/password_probe.dart` (3 sources × 3 fixtures × 3 passwords), on **API 24** and **API 37**. (iOS could not
+be built until 3.4.1; it passes there too.)
 
 ## 3.3.0
 

@@ -13,9 +13,7 @@ Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 
 ```yaml
 dependencies:
-  pdfx_lite:
-    git:
-      url: https://github.com/qeepcologne/pdfx_lite.git
+  pdfx_lite: ^3.4.1
 ```
 
 ```dart
