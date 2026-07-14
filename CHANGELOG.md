@@ -1,45 +1,34 @@
 ## 3.4.0
 
-### `password:` is back — and this time it is actually read
+### `password:` is back — and actually read
 
-Additive: `PdfDocument.openFile` / `openAsset` / `openData` take an optional `password:` again. Upstream `pdfx` also
-accepts one, but on Android and iOS it crossed the wire and neither platform ever read it, so encrypted PDFs failed to
-open regardless — that silent no-op is why 3.0.0 removed the parameter. It now works:
+Additive: `PdfDocument.openFile` / `openAsset` / `openData` take an optional `password:` again. Upstream accepts one
+too, but neither mobile platform ever read it — the silent no-op that got the parameter removed in 3.0.0.
 
-* **iOS** — `CGPDFDocument.unlockWithPassword`, available on every version we support.
-* **Android 15+ (API 35)** — `PdfRenderer` + `LoadParams`, the first release where the platform accepts a password.
-* **Android below API 35** — genuinely impossible, so it throws **`PdfPasswordUnsupportedException`** rather than
-  ignoring the password. Ignoring it would send the document down the password-less path, which rejects *any*
-  encrypted PDF: a caller supplying the **correct** password would be told the document is password-protected,
-  indistinguishable from getting it wrong, and would re-prompt forever. Failing loudly lets them fall back instead.
-  `PdfDocument.isPasswordSupported()` reports this up front, so an app need not prompt for a password it cannot use.
+* **iOS** — every version (`CGPDFDocument.unlockWithPassword`).
+* **Android 15+ (API 35)** — `PdfRenderer` + `LoadParams`.
+* **Android below API 35** — impossible on the platform, so it throws **`PdfPasswordUnsupportedException`** rather than
+  ignoring the password. Ignoring would leave the document on the password-less path, which rejects *any* encrypted
+  PDF: the **correct** password would come back as "password-protected", indistinguishable from a wrong one, and a
+  caller would re-prompt forever. `PdfDocument.isPasswordSupported()` reports this up front.
 
-  Reaching Android 11–14 is possible via `PdfRendererPreV`, but it is a separate class with an incompatible `Page`
-  type — the whole render path would have to abstract over both. See TODO.md.
+`password:` is a **fallback**, tried only once a plain open has been refused. Android's `LoadParams` validates it
+unconditionally, so a permissions-only PDF (restricted, but with an empty user password) opens with no password yet
+*fails* when given one — a remembered password would have broken the documents that needed none.
 
-**`password:` is a fallback, tried only once the document has refused to open without one.** This is not a detail:
-Android's `LoadParams` validates a password unconditionally, so a PDF encrypted with an *empty* user password
-(permissions-only — no printing or copying, the usual shape for invoices and statements) opens fine with no password
-but fails with `SecurityException` when one is supplied. Passing a remembered password would have broken exactly the
-documents that needed none. iOS does not have the problem (`unlockWithPassword` is only called when the document did
-not already come back unlocked), so trying the plain open first keeps the two platforms honest with each other.
-
-`PdfPasswordProtectedException` now also covers a **wrong** password, not just a missing one. The two are not
-distinguished, because Android's `PdfRenderer` reports both as a single `SecurityException` and cannot tell them apart.
+`PdfPasswordProtectedException` now also covers a **wrong** password. It is not distinguished from a missing one:
+Android reports both as a single `SecurityException`.
 
 ### Fixed
 
-* **Android: a leaked file descriptor per failed open.** `PdfRenderer` only takes ownership of the
-  `ParcelFileDescriptor` once it has been *constructed*; if the constructor throws, closing it was on us, and nothing
-  did. Latent before — a throw meant a corrupt file — but a wrong password throws too, so a caller re-prompting the
-  user would have leaked one descriptor per attempt.
+* **Android: a leaked `ParcelFileDescriptor` per failed open.** `PdfRenderer` takes ownership only once *constructed*,
+  so a throwing constructor left it open. Latent while a throw meant a corrupt file; a wrong password throws too,
+  leaking one per retry.
 
 ### Testing
 
-`example/lib/password_probe.dart` runs 3 sources (asset/file/data) × 3 fixtures × 3 passwords and prints one line per
-case. Verified on **API 24** (the `minSdk` floor: `isPasswordSupported()` false, encrypted-with-password throws
-`PdfPasswordUnsupportedException`, and referencing `LoadParams` does not trip class verification) and **API 37**
-(everything opens). Not yet run on iOS.
+`example/lib/password_probe.dart` (3 sources × 3 fixtures × 3 passwords), on **API 24** and **API 37**. Not run on
+iOS — the Swift is reviewed, not compiled.
 
 ## 3.3.0
 
