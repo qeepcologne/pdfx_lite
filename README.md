@@ -43,35 +43,22 @@ PdfViewPinch(controller: controller);
 final doc = await PdfDocument.openFile(path, password: 'secret');
 ```
 
-`password:` is a **fallback** — it is only used if the document actually demands one. Passing one to a document that
-opens without it is harmless, which matters for the common "permissions-only" PDF (no printing or copying, but an
-empty user password — the usual shape for invoices and statements): those open with no password at all, and are not
-broken by supplying one.
+`password:` is a **fallback**, used only if the document demands one — passing it to a document that opens without one
+is harmless. (A permissions-only PDF, restricted but with an empty user password, needs none.)
 
-Two failures are worth catching:
-
-```dart
-try {
-  return await PdfDocument.openFile(path, password: password);
-} on PdfPasswordProtectedException {
-  // Needs a password, and none was given or the given one is wrong. Re-prompt.
-  // The two cases are not distinguished: Android's PdfRenderer reports both as one
-  // SecurityException, so no platform can honestly tell them apart.
-} on PdfPasswordUnsupportedException {
-  // Android below API 35 only: the document is encrypted and this device cannot use
-  // a password at all. Fall back — an external viewer, say. Never a wrong password.
-}
-```
-
-| | Encrypted PDFs |
+| | |
 |---|---|
-| iOS | supported on every version (`CGPDFDocument.unlockWithPassword`) |
-| Android 15+ (API 35) | supported (`PdfRenderer` + `LoadParams`) |
-| Android below API 35 | **not supported** — throws `PdfPasswordUnsupportedException` |
+| iOS | supported on every version |
+| Android 15+ (API 35) | supported |
+| Android below API 35 | **not supported** |
 
-Call `PdfDocument.isPasswordSupported()` to check up front, and skip the password prompt on a device that cannot use
-the answer. The password is never silently ignored — upstream's was, on *every* mobile device, which is why the
-parameter was removed in 3.0.0 before being reinstated for real in 3.4.0.
+`PdfDocument.isPasswordSupported()` reports that up front, so you can skip a prompt the device cannot honour.
+Otherwise catch:
+
+- **`PdfPasswordProtectedException`** — needs a password, and none was given or the given one is wrong. The two are
+  not distinguished; the platform cannot tell them apart. Re-prompt.
+- **`PdfPasswordUnsupportedException`** — encrypted, and this Android device cannot take a password at all. Never a
+  wrong password. Fall back, e.g. to an external viewer.
 
 ## What changed vs upstream
 
