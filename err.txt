@@ -1,0 +1,8 @@
+Plugin pdfx_lite has a Package.swift for ios but is missing a dependency on
+FlutterFramework. Add the following to your Package.swift dependencies:
+    .package(name: "FlutterFramework", path: "../FlutterFramework")
+And add FlutterFramework as a target dependency:
+    .product(name: "FlutterFramework", package: "FlutterFramework")
+See
+https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-plugin-authors
+for more information.
