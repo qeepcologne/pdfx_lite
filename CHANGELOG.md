@@ -19,12 +19,6 @@ unconditionally, so a permissions-only PDF (restricted, but with an empty user p
 `PdfPasswordProtectedException` now also covers a **wrong** password. It is not distinguished from a missing one:
 Android reports both as a single `SecurityException`.
 
-### Fixed
-
-* **Android: a leaked `ParcelFileDescriptor` per failed open.** `PdfRenderer` takes ownership only once *constructed*,
-  so a throwing constructor left it open. Latent while a throw meant a corrupt file; a wrong password throws too,
-  leaking one per retry.
-
 ### Testing
 
 `example/lib/password_probe.dart` (3 sources × 3 fixtures × 3 passwords), on **API 24** and **API 37**. Not run on
