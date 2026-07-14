@@ -15,13 +15,17 @@ import 'dart:io';
 final _lock = Lock();
 final _api = PdfxApi();
 
-/// Error code both native sides use for an encrypted PDF. Kept in sync by hand with `Messages.kt` and
+/// Error codes both native sides use for an encrypted PDF. Kept in sync by hand with `Messages.kt` and
 /// `SwiftPdfxPlugin.swift` — pigeon generates the message types, not the error codes.
 const _passwordProtectedCode = 'PDF_PASSWORD_PROTECTED';
+const _passwordUnsupportedCode = 'PDF_PASSWORD_UNSUPPORTED';
 
 class PdfxPlatformPigeon extends PdfxPlatform {
-  /// Awaits an open, mapping the native password-protected code to a typed exception. Every other failure stays a
-  /// [PlatformException] — this only rescues the one case a caller can act on.
+  @override
+  Future<bool> isPasswordSupported() => _api.isPasswordSupported();
+
+  /// Awaits an open, mapping the native password codes to typed exceptions. Every other failure stays a
+  /// [PlatformException] — this only rescues the cases a caller can act on.
   Future<PdfDocument> _open(
     Future<OpenReply> reply,
     String sourceName,
@@ -30,8 +34,11 @@ class PdfxPlatformPigeon extends PdfxPlatform {
     try {
       result = await reply;
     } on PlatformException catch (e) {
-      if (e.code == _passwordProtectedCode) {
-        throw PdfPasswordProtectedException(sourceName);
+      switch (e.code) {
+        case _passwordProtectedCode:
+          throw PdfPasswordProtectedException(sourceName);
+        case _passwordUnsupportedCode:
+          throw PdfPasswordUnsupportedException(sourceName);
       }
       rethrow;
     }
@@ -44,28 +51,39 @@ class PdfxPlatformPigeon extends PdfxPlatform {
 
   /// Open PDF document from filesystem path
   ///
-  /// Throws [PdfPasswordProtectedException] if the document needs a password.
+  /// Throws [PdfPasswordProtectedException] if the document needs a password and [password] is absent or wrong, and
+  /// [PdfPasswordUnsupportedException] if [password] is given on a device that cannot use one.
   @override
-  Future<PdfDocument> openFile(String filePath) => _open(
-        _api.openDocumentFile(OpenPathMessage()..path = filePath),
+  Future<PdfDocument> openFile(String filePath, {String? password}) => _open(
+        _api.openDocumentFile(OpenPathMessage()
+          ..path = filePath
+          ..password = password),
         'file:$filePath',
       );
 
   /// Open PDF document from application assets
   ///
-  /// Throws [PdfPasswordProtectedException] if the document needs a password.
+  /// See [openFile] for the exceptions [password] can raise.
   @override
-  Future<PdfDocument> openAsset(String name) => _open(
-        _api.openDocumentAsset(OpenPathMessage()..path = name),
+  Future<PdfDocument> openAsset(String name, {String? password}) => _open(
+        _api.openDocumentAsset(OpenPathMessage()
+          ..path = name
+          ..password = password),
         'asset:$name',
       );
 
   /// Open PDF file from memory (Uint8List)
   ///
-  /// Throws [PdfPasswordProtectedException] if the document needs a password.
+  /// See [openFile] for the exceptions [password] can raise.
   @override
-  Future<PdfDocument> openData(FutureOr<Uint8List> data) async => _open(
-        _api.openDocumentData(OpenDataMessage()..data = await data),
+  Future<PdfDocument> openData(
+    FutureOr<Uint8List> data, {
+    String? password,
+  }) async =>
+      _open(
+        _api.openDocumentData(OpenDataMessage()
+          ..data = await data
+          ..password = password),
         'memory:binary',
       );
 }

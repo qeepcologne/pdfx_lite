@@ -33,12 +33,46 @@ PdfViewPinch(controller: controller);
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
 2. **Web:** drop the `pdf.js` `<script>` tags from `web/index.html`, and guard any PDF viewing behind `kIsWeb`,
    falling back to the browser's native viewer.
-3. **Drop `password:`** from `PdfDocument.openFile` / `openAsset` / `openData`, and **drop `hasPdfSupport()`** — both
-   are gone. Only the web renderer ever honoured a password (on mobile it was silently ignored, so encrypted PDFs
-   failed to open anyway), and `hasPdfSupport()` was hardcoded `true`. An encrypted PDF now throws a catchable
-   `PdfPasswordProtectedException` rather than failing as "unknown error"; opening one still is not supported.
+3. **Keep `password:`, drop `hasPdfSupport()`.** `password:` works on `openFile` / `openAsset` / `openData` and, unlike
+   upstream's, is actually read on mobile — see *Encrypted PDFs*. `hasPdfSupport()` is gone; it was hardcoded `true`.
 4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
    the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
+
+## Encrypted PDFs
+
+```dart
+final doc = await PdfDocument.openFile(path, password: 'secret');
+```
+
+`password:` is a **fallback** — it is only used if the document actually demands one. Passing one to a document that
+opens without it is harmless, which matters for the common "permissions-only" PDF (no printing or copying, but an
+empty user password — the usual shape for invoices and statements): those open with no password at all, and are not
+broken by supplying one.
+
+Two failures are worth catching:
+
+```dart
+try {
+  return await PdfDocument.openFile(path, password: password);
+} on PdfPasswordProtectedException {
+  // Needs a password, and none was given or the given one is wrong. Re-prompt.
+  // The two cases are not distinguished: Android's PdfRenderer reports both as one
+  // SecurityException, so no platform can honestly tell them apart.
+} on PdfPasswordUnsupportedException {
+  // Android below API 35 only: the document is encrypted and this device cannot use
+  // a password at all. Fall back — an external viewer, say. Never a wrong password.
+}
+```
+
+| | Encrypted PDFs |
+|---|---|
+| iOS | supported on every version (`CGPDFDocument.unlockWithPassword`) |
+| Android 15+ (API 35) | supported (`PdfRenderer` + `LoadParams`) |
+| Android below API 35 | **not supported** — throws `PdfPasswordUnsupportedException` |
+
+Call `PdfDocument.isPasswordSupported()` to check up front, and skip the password prompt on a device that cannot use
+the answer. The password is never silently ignored — upstream's was, on *every* mobile device, which is why the
+parameter was removed in 3.0.0 before being reinstated for real in 3.4.0.
 
 ## What changed vs upstream
 
@@ -59,6 +93,7 @@ PdfViewPinch(controller: controller);
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
 | Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta`, `synchronized`, `vector_math` remain |
+| Encrypted PDFs | `password:` accepted, then **silently ignored** on Android and iOS — they could never open | **honoured** on iOS and Android 15+; a typed exception, never silence, where it cannot be |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race, and
 more. See the [CHANGELOG](CHANGELOG.md).

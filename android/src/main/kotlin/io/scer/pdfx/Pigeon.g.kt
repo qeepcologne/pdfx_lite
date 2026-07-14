@@ -193,24 +193,27 @@ class FlutterError (
 ) : RuntimeException()
 
 /**
- * No `password` field: only the web renderer ever honoured one. Android and
- * iOS never read it, so an encrypted document fails to open regardless.
+ * [password] unlocks an encrypted document. iOS honours it on every version we
+ * support; Android needs API 35. See `PdfxApi.isPasswordSupported`.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class OpenDataMessage (
-  val data: ByteArray? = null
+  val data: ByteArray? = null,
+  val password: String? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): OpenDataMessage {
       val data = pigeonVar_list[0] as ByteArray?
-      return OpenDataMessage(data)
+      val password = pigeonVar_list[1] as String?
+      return OpenDataMessage(data, password)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       data,
+      password,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -221,33 +224,37 @@ data class OpenDataMessage (
       return true
     }
     val other = other as OpenDataMessage
-    return PigeonPigeonUtils.deepEquals(this.data, other.data)
+    return PigeonPigeonUtils.deepEquals(this.data, other.data) && PigeonPigeonUtils.deepEquals(this.password, other.password)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + PigeonPigeonUtils.deepHash(this.data)
+    result = 31 * result + PigeonPigeonUtils.deepHash(this.password)
     return result
   }
   override fun toString(): String {
-    return "OpenDataMessage(data=${data?.contentToString()})"
+    return "OpenDataMessage(data=${data?.contentToString()}, password=$password)"
   }
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class OpenPathMessage (
-  val path: String? = null
+  val path: String? = null,
+  val password: String? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): OpenPathMessage {
       val path = pigeonVar_list[0] as String?
-      return OpenPathMessage(path)
+      val password = pigeonVar_list[1] as String?
+      return OpenPathMessage(path, password)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       path,
+      password,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -258,16 +265,17 @@ data class OpenPathMessage (
       return true
     }
     val other = other as OpenPathMessage
-    return PigeonPigeonUtils.deepEquals(this.path, other.path)
+    return PigeonPigeonUtils.deepEquals(this.path, other.path) && PigeonPigeonUtils.deepEquals(this.password, other.password)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + PigeonPigeonUtils.deepHash(this.path)
+    result = 31 * result + PigeonPigeonUtils.deepHash(this.password)
     return result
   }
   override fun toString(): String {
-    return "OpenPathMessage(path=$path)"
+    return "OpenPathMessage(path=$path, password=$password)"
   }
 }
 
@@ -909,6 +917,12 @@ private open class PigeonPigeonCodec : StandardMessageCodec() {
 
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface PdfxApi {
+  /**
+   * Whether this device can open an encrypted PDF at all — always true on iOS,
+   * but only Android 15 (API 35) upwards. Passing a `password` on a device that
+   * says false fails with `PDF_PASSWORD_UNSUPPORTED` rather than being ignored.
+   */
+  fun isPasswordSupported(): Boolean
   fun openDocumentData(message: OpenDataMessage, callback: (Result<OpenReply>) -> Unit)
   fun openDocumentFile(message: OpenPathMessage, callback: (Result<OpenReply>) -> Unit)
   fun openDocumentAsset(message: OpenPathMessage, callback: (Result<OpenReply>) -> Unit)
@@ -930,6 +944,21 @@ interface PdfxApi {
     @JvmOverloads
     fun setUp(binaryMessenger: BinaryMessenger, api: PdfxApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.pdfx_lite.PdfxApi.isPasswordSupported$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.isPasswordSupported())
+            } catch (exception: Throwable) {
+              PigeonPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.pdfx_lite.PdfxApi.openDocumentData$separatedMessageChannelSuffix", codec)
         if (api != null) {

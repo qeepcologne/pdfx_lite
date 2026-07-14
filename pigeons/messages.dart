@@ -10,14 +10,16 @@ import 'package:pigeon/pigeon.dart';
   ),
   swiftOut: 'ios/pdfx_lite/Sources/pdfx_lite/Pigeon.g.swift',
 ))
-/// No `password` field: only the web renderer ever honoured one. Android and
-/// iOS never read it, so an encrypted document fails to open regardless.
+/// [password] unlocks an encrypted document. iOS honours it on every version we
+/// support; Android needs API 35. See `PdfxApi.isPasswordSupported`.
 class OpenDataMessage {
   Uint8List? data;
+  String? password;
 }
 
 class OpenPathMessage {
   String? path;
+  String? password;
 }
 
 class OpenReply {
@@ -101,6 +103,11 @@ class UnregisterTextureMessage {
 
 @HostApi()
 abstract class PdfxApi {
+  /// Whether this device can open an encrypted PDF at all — always true on iOS,
+  /// but only Android 15 (API 35) upwards. Passing a `password` on a device that
+  /// says false fails with `PDF_PASSWORD_UNSUPPORTED` rather than being ignored.
+  bool isPasswordSupported();
+
   @async
   OpenReply openDocumentData(OpenDataMessage message);
   @async

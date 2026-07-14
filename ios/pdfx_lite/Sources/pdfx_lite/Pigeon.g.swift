@@ -184,76 +184,86 @@ private func nilOrValue<T>(_ value: Any?) -> T? {
 }
 
 
-/// No `password` field: only the web renderer ever honoured one. Android and
-/// iOS never read it, so an encrypted document fails to open regardless.
+/// [password] unlocks an encrypted document. iOS honours it on every version we
+/// support; Android needs API 35. See `PdfxApi.isPasswordSupported`.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct OpenDataMessage: Hashable, CustomStringConvertible {
   var data: FlutterStandardTypedData? = nil
+  var password: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> OpenDataMessage? {
     let data: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[0])
+    let password: String? = nilOrValue(pigeonVar_list[1])
 
     return OpenDataMessage(
-      data: data
+      data: data,
+      password: password
     )
   }
   func toList() -> [Any?] {
     return [
-      data
+      data,
+      password,
     ]
   }
   static func == (lhs: OpenDataMessage, rhs: OpenDataMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return PigeonPigeonInternal.deepEquals(lhs.data, rhs.data)
+    return PigeonPigeonInternal.deepEquals(lhs.data, rhs.data) && PigeonPigeonInternal.deepEquals(lhs.password, rhs.password)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("OpenDataMessage")
     PigeonPigeonInternal.deepHash(value: data, hasher: &hasher)
+    PigeonPigeonInternal.deepHash(value: password, hasher: &hasher)
   }
 
   public var description: String {
-    return "OpenDataMessage(data: \(String(describing: data)))"
+    return "OpenDataMessage(data: \(String(describing: data)), password: \(String(describing: password)))"
   }
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
 struct OpenPathMessage: Hashable, CustomStringConvertible {
   var path: String? = nil
+  var password: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> OpenPathMessage? {
     let path: String? = nilOrValue(pigeonVar_list[0])
+    let password: String? = nilOrValue(pigeonVar_list[1])
 
     return OpenPathMessage(
-      path: path
+      path: path,
+      password: password
     )
   }
   func toList() -> [Any?] {
     return [
-      path
+      path,
+      password,
     ]
   }
   static func == (lhs: OpenPathMessage, rhs: OpenPathMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return PigeonPigeonInternal.deepEquals(lhs.path, rhs.path)
+    return PigeonPigeonInternal.deepEquals(lhs.path, rhs.path) && PigeonPigeonInternal.deepEquals(lhs.password, rhs.password)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("OpenPathMessage")
     PigeonPigeonInternal.deepHash(value: path, hasher: &hasher)
+    PigeonPigeonInternal.deepHash(value: password, hasher: &hasher)
   }
 
   public var description: String {
-    return "OpenPathMessage(path: \(String(describing: path)))"
+    return "OpenPathMessage(path: \(String(describing: path)), password: \(String(describing: password)))"
   }
 }
 
@@ -879,6 +889,10 @@ class PigeonPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol PdfxApi {
+  /// Whether this device can open an encrypted PDF at all — always true on iOS,
+  /// but only Android 15 (API 35) upwards. Passing a `password` on a device that
+  /// says false fails with `PDF_PASSWORD_UNSUPPORTED` rather than being ignored.
+  func isPasswordSupported() throws -> Bool
   func openDocumentData(message: OpenDataMessage, completion: @escaping (Result<OpenReply, Error>) -> Void)
   func openDocumentFile(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void)
   func openDocumentAsset(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void)
@@ -898,6 +912,22 @@ class PdfxApiSetup {
   /// Sets up an instance of `PdfxApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: PdfxApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Whether this device can open an encrypted PDF at all — always true on iOS,
+    /// but only Android 15 (API 35) upwards. Passing a `password` on a device that
+    /// says false fails with `PDF_PASSWORD_UNSUPPORTED` rather than being ignored.
+    let isPasswordSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.pdfx_lite.PdfxApi.isPasswordSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isPasswordSupportedChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.isPasswordSupported()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      isPasswordSupportedChannel.setMessageHandler(nil)
+    }
     let openDocumentDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.pdfx_lite.PdfxApi.openDocumentData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       openDocumentDataChannel.setMessageHandler { message, reply in

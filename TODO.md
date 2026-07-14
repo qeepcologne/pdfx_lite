@@ -16,28 +16,48 @@ before fixing** — several may already be dead, or may not be ours to fix.
 | #532 | Wrong height returned for certain documents | `getPage` returns the native renderer's `width`/`height` verbatim | Needs the reporter's PDF |
 | #557 | Cyrillic characters not displayed on Android | Platform `PdfRenderer` font embedding — quite possibly **not ours** | Needs the reporter's PDF |
 
-## 2. Password / encrypted PDFs — blocked on Android API 35 · #600, #618, #550
+## 2. Password / encrypted PDFs — done in 3.4.0, except API 30–34 · #600, #618, #550
 
-**Detection landed in 3.3.0**: both platforms now report an encrypted PDF as `PdfPasswordProtectedException` instead of
-"Unknown error" (Android) / "Invalid PDF format" (iOS). *Opening* one is what remains, and it is still blocked below.
+**Landed.** Detection in 3.3.0 (`PdfPasswordProtectedException` instead of "Unknown error" / "Invalid PDF format");
+`password:` itself in 3.4.0 — iOS on every version we support, Android from API 35. Below that, supplying a password
+for a document that genuinely needs one throws `PdfPasswordUnsupportedException`, and `PdfDocument.isPasswordSupported()`
+lets a caller ask up front rather than prompting for a password it cannot use. It is *not* silently ignored: that was
+the original sin that got `password:` removed in 3.0.0.
 
-`password:` was **removed in 3.0.0** because it was a silent no-op: it crossed the wire and neither platform read it,
-so encrypted PDFs failed to open regardless. Upstream is now implementing it for real (#600).
+### What is left: Android API 30–34
 
-- **iOS — free, works on every version we support.** `CGPDFDocument.unlockWithPassword(password)`, then check
-  `isUnlocked`. Available since iOS 2.0.
-- **Android — API 35+ only.** `PdfRenderer(fd, LoadParams.Builder().setPassword(…).build())`, gated on
-  `SDK_INT >= 35` **and** `SdkExtensions.getExtensionVersion(S) >= 13`. Below that, upstream's own patch just throws.
-  `minSdk` is 24, so that is most devices in the field.
+`PdfRenderer(fd, LoadParams)` is API 35+. The platform *does* expose the same capability further back, through
+**`android.graphics.pdf.PdfRendererPreV`** (API 30–34) — but it is a **separate class with its own incompatible
+`Page` type** (`render` takes a `RenderParams`, not an int mode; different `openPage` return type). It is not a
+drop-in: `Document.kt`, `DocumentRepository`, and both render paths in `Messages.kt` are typed on `PdfRenderer` /
+`PdfRenderer.Page` throughout, so taking it means abstracting the entire Android render path over two renderer
+hierarchies — for encrypted PDFs alone.
 
-Shipping it means: **works on every iPhone, fails on most Android phones.** That asymmetry has to be deliberate and
-documented — a half-working API is exactly what 3.0.0 removed `password` to escape.
+Not worth it speculatively. Do it if real users on Android 11–14 turn out to need encrypted PDFs; until then
+`isPasswordSupported()` reports false there and callers can fall back.
 
-1. **Leave it out** until Android 15 is widespread. ← default
-2. **Add it, platform-gated**, throwing a *typed, catchable* error (not the generic "Can't create PDF renderer") so
-   callers can detect it and fall back.
+*(Earlier note in this file claimed an `SdkExtensions.getExtensionVersion(S) >= 13` gate on `PdfRenderer` itself.
+That was wrong — there is no extension backport of the `LoadParams` constructor; `PdfRendererPreV` is the mechanism,
+and it is a different class.)*
 
-Pick (2) only when something actually needs it — e.g. if `esim-app` ever has to open encrypted invoices.
+### Verifying it
+
+`example/lib/password_probe.dart` runs the full matrix — 3 sources (asset/file/data) × 3 fixtures × 3 passwords —
+and prints one line per case:
+
+```
+cd example && flutter run -t lib/password_probe.dart -d <device>
+```
+
+Fixtures are `assets/locked.pdf` (user password `secret`) and `assets/perms_only.pdf` (empty user password,
+permissions-restricted — the invoice/statement shape, which must open with *no* password). Regenerate with:
+
+```
+qpdf --encrypt --user-password=secret --owner-password=owner --bits=256 -- assets/hello.pdf assets/locked.pdf
+qpdf --encrypt --user-password= --owner-password=owner --bits=256 --print=none --modify=none -- assets/hello.pdf assets/perms_only.pdf
+```
+
+Verified on API 24 and API 37. **Not yet run on iOS** — doing so is the outstanding check on the Swift.
 
 ## 3. Annotations are not rendered — on either platform · #592, #584
 

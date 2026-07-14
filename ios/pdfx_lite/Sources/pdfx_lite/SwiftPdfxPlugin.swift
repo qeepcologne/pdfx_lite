@@ -64,7 +64,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
         let renderer: CGPDFDocument
         do {
-            renderer = try openDataDocument(data: data.data)
+            renderer = try openDataDocument(data: data.data, password: message.password)
         } catch {
             return completion(.failure(openFailure(error)))
         }
@@ -82,7 +82,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
         let renderer: CGPDFDocument
         do {
-            renderer = try openFileDocument(pdfFilePath: pdfFilePath)
+            renderer = try openFileDocument(pdfFilePath: pdfFilePath, password: message.password)
         } catch {
             return completion(.failure(openFailure(error)))
         }
@@ -100,7 +100,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
         let renderer: CGPDFDocument
         do {
-            renderer = try openAssetDocument(name: name)
+            renderer = try openAssetDocument(name: name, password: message.password)
         } catch {
             return completion(.failure(openFailure(error)))
         }
@@ -272,33 +272,48 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
     }
 
+    /// `CGPDFDocument.unlockWithPassword` has existed since iOS 2.0, so unlike Android there is no version gate here
+    /// and `isPasswordSupported` is unconditionally true.
+    func isPasswordSupported() throws -> Bool {
+        true
+    }
+
     /// Test `isUnlocked`, never `isEncrypted`. A PDF encrypted with an *empty* user password -- permission
     /// restrictions only, no password to type, very common for invoices and statements -- is unlocked automatically
     /// by Core Graphics and reads fine. It is `isEncrypted == true` and `isUnlocked == true` at the same time, so
     /// rejecting on `isEncrypted` throws away readable documents.
-    private func unlocked(_ document: CGPDFDocument?) throws -> CGPDFDocument {
+    ///
+    /// Try [password] only when the document did *not* come back already unlocked: `unlockWithPassword` on an
+    /// already-unlocked document is pointless, and on a permissions-only PDF it would fail against the *owner*
+    /// password and tell us nothing. A wrong password leaves `isUnlocked` false and surfaces as
+    /// `.passwordProtected`, exactly as a missing one does -- Android's `PdfRenderer` cannot tell those two apart
+    /// either, so neither platform promises to.
+    private func unlocked(_ document: CGPDFDocument?, password: String?) throws -> CGPDFDocument {
         guard let document else { throw OpenFailure.invalid }
+        if !document.isUnlocked, let password {
+            _ = document.unlockWithPassword(password)
+        }
         guard document.isUnlocked else { throw OpenFailure.passwordProtected }
         return document
     }
 
-    func openDataDocument(data: Data) throws -> CGPDFDocument {
+    func openDataDocument(data: Data, password: String?) throws -> CGPDFDocument {
         guard let provider = CGDataProvider(data: data as CFData) else { throw OpenFailure.invalid }
-        return try unlocked(CGPDFDocument(provider))
+        return try unlocked(CGPDFDocument(provider), password: password)
     }
 
-    func openFileDocument(pdfFilePath: String) throws -> CGPDFDocument {
-        try unlocked(CGPDFDocument(URL(fileURLWithPath: pdfFilePath) as CFURL))
+    func openFileDocument(pdfFilePath: String, password: String?) throws -> CGPDFDocument {
+        try unlocked(CGPDFDocument(URL(fileURLWithPath: pdfFilePath) as CFURL), password: password)
     }
 
-    func openAssetDocument(name: String) throws -> CGPDFDocument {
+    func openAssetDocument(name: String, password: String?) throws -> CGPDFDocument {
         guard let path = Bundle.main.path(
             forResource: "Frameworks/App.framework/flutter_assets/" + name,
             ofType: ""
         ) else {
             throw OpenFailure.invalid
         }
-        return try openFileDocument(pdfFilePath: path)
+        return try openFileDocument(pdfFilePath: path, password: password)
     }
 }
 

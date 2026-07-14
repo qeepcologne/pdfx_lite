@@ -4,7 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.pdf.LoadParams
 import android.graphics.pdf.PdfRenderer
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.util.SparseArray
@@ -30,10 +32,36 @@ import kotlinx.coroutines.withContext
 private const val CHANNEL = "pdf_renderer"
 
 /**
- * The error code for an encrypted PDF, shared verbatim with iOS and with the Dart side, which turns it into
- * `PdfPasswordProtectedException`. Every other failure here still reports [CHANNEL] as its code.
+ * The error code for an encrypted PDF whose password was absent or wrong, shared verbatim with iOS and with the Dart
+ * side, which turns it into `PdfPasswordProtectedException`. [PdfRenderer] reports both cases as [SecurityException]
+ * and does not distinguish them, so neither do we.
+ *
+ * Every other failure here still reports [CHANNEL] as its code.
  */
 private const val PASSWORD_PROTECTED = "PDF_PASSWORD_PROTECTED"
+
+/**
+ * The error code for "a password was supplied, but this device cannot use one" — see [PasswordUnsupportedException].
+ * The Dart side turns it into `PdfPasswordUnsupportedException`.
+ */
+private const val PASSWORD_UNSUPPORTED = "PDF_PASSWORD_UNSUPPORTED"
+
+/**
+ * The document really is encrypted and a `password` was supplied, but [PdfRenderer] only accepts one from API 35
+ * ([Build.VERSION_CODES.VANILLA_ICE_CREAM]) via the [LoadParams] constructor overload. `minSdk` is 24, so this is
+ * most devices in the field.
+ *
+ * We refuse rather than dropping the password silently. Ignoring it would leave the file on the one-argument
+ * [PdfRenderer] constructor, which throws [SecurityException] on any encrypted PDF -- so a caller who supplied the
+ * *correct* password would be told the document is password-protected, indistinguishable from having supplied the
+ * wrong one, and would re-prompt forever. A silently-ignored `password` is the exact bug that got the parameter
+ * removed in 3.0.0; failing loudly lets a caller fall back (to an external viewer, say) instead of chasing a
+ * password that was never going to be read.
+ *
+ * Reaching API 30-34 is possible but not cheap: it needs [android.graphics.pdf.PdfRendererPreV], a separate class
+ * with its own incompatible `Page` type, so the whole render path would have to abstract over both. See TODO.md.
+ */
+class PasswordUnsupportedException : Exception()
 
 /**
  * [ParcelFileDescriptor.open] returned null. Its stub carries no `@NonNull`, so the contract permits this, but in
@@ -59,16 +87,24 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         scope.cancel()
     }
 
+    override fun isPasswordSupported(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+
     override fun openDocumentData(
         message: OpenDataMessage,
         callback: (Result<OpenReply>) -> Unit
     ) {
         try {
-            val documentRenderer = openDataDocument(message.data!!)
+            val documentRenderer = openDataDocument(message.data!!, message.password)
             val document = documents.register(documentRenderer)
             callback(Result.success(OpenReply(
                 id = document.id,
                 pagesCount = document.pagesCount.toLong(),
+            )))
+        } catch (e: PasswordUnsupportedException) {
+            callback(Result.failure(FlutterError(
+                PASSWORD_UNSUPPORTED,
+                "Opening a password-protected PDF needs Android 15 (API 35); this device runs API ${Build.VERSION.SDK_INT}"
             )))
         } catch (e: SecurityException) {
             callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
@@ -86,7 +122,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         callback: (Result<OpenReply>) -> Unit
     ) {
         try {
-            val documentRenderer = openFileDocument(File(message.path!!))
+            val documentRenderer = openFileDocument(File(message.path!!), message.password)
             val document = documents.register(documentRenderer)
             callback(Result.success(OpenReply(
                 id = document.id,
@@ -96,6 +132,11 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: path")))
         } catch (e: FileNotFoundException) {
             callback(Result.failure(FlutterError(CHANNEL, "File not found")))
+        } catch (e: PasswordUnsupportedException) {
+            callback(Result.failure(FlutterError(
+                PASSWORD_UNSUPPORTED,
+                "Opening a password-protected PDF needs Android 15 (API 35); this device runs API ${Build.VERSION.SDK_INT}"
+            )))
         } catch (e: SecurityException) {
             callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
@@ -112,7 +153,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         callback: (Result<OpenReply>) -> Unit
     ) {
         try {
-            val documentRenderer = openAssetDocument(message.path!!)
+            val documentRenderer = openAssetDocument(message.path!!, message.password)
             val document = documents.register(documentRenderer)
             callback(Result.success(OpenReply(
                 id = document.id,
@@ -122,6 +163,11 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: path")))
         } catch (e: FileNotFoundException) {
             callback(Result.failure(FlutterError(CHANNEL, "File not found")))
+        } catch (e: PasswordUnsupportedException) {
+            callback(Result.failure(FlutterError(
+                PASSWORD_UNSUPPORTED,
+                "Opening a password-protected PDF needs Android 15 (API 35); this device runs API ${Build.VERSION.SDK_INT}"
+            )))
         } catch (e: SecurityException) {
             callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
@@ -378,16 +424,16 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         surfaceProducers.remove(id)
     }
 
-    private fun openDataDocument(data: ByteArray): Pair<ParcelFileDescriptor, PdfRenderer> {
+    private fun openDataDocument(data: ByteArray, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {
         val tempDataFile = File(binding.applicationContext.cacheDir, "$randomFilename.pdf")
         if (!tempDataFile.exists()) {
             tempDataFile.writeBytes(data)
         }
         Log.d(CHANNEL, "OpenDataDocument. Created file: " + tempDataFile.path)
-        return openFileDocument(tempDataFile)
+        return openFileDocument(tempDataFile, password)
     }
 
-    private fun openAssetDocument(assetPath: String): Pair<ParcelFileDescriptor, PdfRenderer> {
+    private fun openAssetDocument(assetPath: String, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {
         val fullAssetPath = binding.flutterAssets.getAssetFilePathByName(assetPath)
         val tempAssetFile = File(binding.applicationContext.cacheDir, "$randomFilename.pdf")
         if (!tempAssetFile.exists()) {
@@ -396,16 +442,62 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             inputStream.close()
         }
         Log.d(CHANNEL, "OpenAssetDocument. Created file: " + tempAssetFile.path)
-        return openFileDocument(tempAssetFile)
+        return openFileDocument(tempAssetFile, password)
     }
 
-    private fun openFileDocument(file: File): Pair<ParcelFileDescriptor, PdfRenderer> {
-        Log.d(CHANNEL, "OpenFileDocument. File: " + file.path)
-        val fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-        return if (fileDescriptor != null) {
-            val pdfRenderer = PdfRenderer(fileDescriptor)
-            Pair(fileDescriptor, pdfRenderer)
-        } else throw CreateRendererException()
+    /**
+     * [password] is a *fallback*, used only if the document actually demands one -- so we always try the plain
+     * constructor first, and reach for [LoadParams] only once that has been refused.
+     *
+     * Trying [LoadParams] up front instead would be wrong. It validates the password unconditionally, so a document
+     * encrypted with an *empty* user password (permission restrictions only -- no printing or copying, the common
+     * shape for invoices and statements) opens happily with no password yet fails with [SecurityException] when one
+     * is supplied. A caller holding a remembered password would then break the very documents that needed none.
+     * Verified on API 37: `perms_only.pdf` opens with no password and throws with one.
+     *
+     * iOS behaves this way for free -- `unlockWithPassword` is only called there when the document did not already
+     * come back unlocked -- so this keeps the two platforms honest with each other.
+     *
+     * Throws [SecurityException] if the document is encrypted and [password] is absent or wrong,
+     * [PasswordUnsupportedException] if it is encrypted and [password] was given but this device cannot use one,
+     * [IOException] if the file is corrupt.
+     */
+    private fun openFileDocument(file: File, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {
+        Log.d(CHANNEL, "OpenFileDocument. File: " + file.path) //Never log `password`.
+
+        try {
+            return newRenderer(file) { PdfRenderer(it) }
+        } catch (e: SecurityException) {
+            //Encrypted, and no password to try: report it as-is.
+            if (password == null) throw e
+        }
+
+        if (!isPasswordSupported()) throw PasswordUnsupportedException()
+        return newRenderer(file) { withPassword(it, password!!) }
+    }
+
+    /** Isolated so the API-35-only [LoadParams] is never touched by a method that runs on older devices. */
+    private fun withPassword(fd: ParcelFileDescriptor, password: String): PdfRenderer =
+        PdfRenderer(fd, LoadParams.Builder().setPassword(password).build())
+
+    /**
+     * [PdfRenderer] only takes ownership of the descriptor once it has been constructed; if it throws, closing it is
+     * on us. That was a leak nobody ever hit, because a throw here used to mean a corrupt file. It matters now: a
+     * wrong password throws [SecurityException], so a caller re-prompting the user would leak a descriptor per
+     * attempt, and the retry above opens a second one by design.
+     */
+    private inline fun newRenderer(
+        file: File,
+        make: (ParcelFileDescriptor) -> PdfRenderer
+    ): Pair<ParcelFileDescriptor, PdfRenderer> {
+        val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            ?: throw CreateRendererException()
+        try {
+            return Pair(fd, make(fd))
+        } catch (e: Throwable) {
+            fd.close()
+            throw e
+        }
     }
 }
 
