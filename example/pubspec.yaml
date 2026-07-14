@@ -19,6 +19,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  #pdfx_lite ships as a Swift package with no podspec, so the host app must use SPM to find it.
+  config:
+    enable-swift-package-manager: true
   assets:
     - assets/hello.pdf
     - assets/locked.pdf
