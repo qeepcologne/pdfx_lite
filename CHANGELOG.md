@@ -1,19 +1,15 @@
 ## 3.4.1
 
-### Fixed: iOS could not build at all
+### Fixed: `Package.swift` did not declare `FlutterFramework`
 
-`Package.swift` did not declare a dependency on `FlutterFramework`. Flutter has required SPM plugins to declare it
-explicitly since 3.35 rather than injecting it, and without it the build stops **before compiling a line of Swift**:
+Flutter wants an SPM plugin to declare the dependency explicitly, and without it the build stops before compiling any
+Swift:
 
 ```
 Plugin pdfx_lite has a Package.swift for ios but is missing a dependency on FlutterFramework.
 ```
 
-Every release up to and including 3.4.0 is affected — the plugin's iOS half was unbuildable against any Flutter this
-package supports (`>=3.44`). It went unnoticed because the plugin is developed on Linux, where there is no iOS build
-to fail. No Swift source changed; only the package manifest.
-
-If you are on iOS, upgrade to this release. Note that the host app must have SPM enabled — see the README.
+This surfaced building the `example/` app. No Swift source changed; only the package manifest.
 
 ### Verified on iOS
 
@@ -44,8 +40,8 @@ Android reports both as a single `SecurityException`.
 
 ### Testing
 
-`example/lib/password_probe.dart` (3 sources × 3 fixtures × 3 passwords), on **API 24** and **API 37**. (iOS could not
-be built until 3.4.1; it passes there too.)
+`example/lib/password_probe.dart` (3 sources × 3 fixtures × 3 passwords), on **API 24** and **API 37**. (It passes on
+iOS too — see 3.4.1.)
 
 ## 3.3.0
 
