@@ -87,19 +87,30 @@ class PdfPageImage {
     if (path == null || retWidth == null || retHeight == null) {
       throw StateError('pdfx_lite: native renderer returned an incomplete reply');
     }
-    final Uint8List pixels = await getPixels(
-      path: path,
-      removeTempFile: removeTempFile,
-    );
-
     return PdfPageImage._(
       pageNumber: pageNumber,
       width: retWidth,
       height: retHeight,
-      bytes: pixels,
+      bytes: await _readTempFile(path, remove: removeTempFile),
       format: format,
       quality: quality,
     );
+  }
+
+  /// Reads a rendered page back from the temp file the native renderer wrote.
+  ///
+  /// These are the *encoded* PNG/JPEG/WebP bytes, not pixels — upstream's name for this (`getPixels`) said otherwise.
+  /// It lived in its own library there because it was a conditional-import seam, swapped for a web implementation.
+  static Future<Uint8List> _readTempFile(
+    String path, {
+    required bool remove,
+  }) async {
+    final file = File(path);
+    final Uint8List bytes = await file.readAsBytes();
+    if (remove) {
+      await file.delete();
+    }
+    return bytes;
   }
 
   @override

@@ -27,6 +27,10 @@ never by a caller. `PdfxPlatform` was never exported. Every other public name is
 - **`PdfPage.render` returns `PdfPageImage`, not `PdfPageImage?`.** It has always either thrown or returned an image.
 - **`PdfPageImage.width` / `.height` are `int`, not `int?`** — nullable only because every pigeon field is.
 
+`get_pixels.dart` is folded into `PdfPageImage` as a private helper. It was its own library because upstream used it
+as a conditional-import seam, swapping in a web implementation — the machinery this fork deleted. It also did not
+return pixels: they are the encoded PNG/JPEG bytes.
+
 ## 3.5.0
 
 ### Fixed: iOS leaked a `CGPDFPage` for every page ever displayed

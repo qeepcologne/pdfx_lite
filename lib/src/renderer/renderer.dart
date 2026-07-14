@@ -5,7 +5,6 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:meta/meta.dart';
-import 'package:pdfx_lite/src/renderer/get_pixels.dart';
 import 'package:pdfx_lite/src/renderer/pigeon.dart';
 import 'package:synchronized/synchronized.dart';
 
