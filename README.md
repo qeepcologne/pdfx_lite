@@ -34,8 +34,9 @@ PdfViewPinch(controller: controller);
 3. **Drop `hasPdfSupport()`** — it was hardcoded `true`.
 4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
    the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
-5. **Drop `page.close()` and `getPage(autoCloseAndroid:)`** — a `PdfPage` holds no native resource. Only the document
-   is closed.
+5. **A `PdfPage` holds no native resource**, so it is addressed by number, not by a handle. Drop `page.close()` and
+   `getPage(autoCloseAndroid:)`; `PdfPage.id`, `PdfPageImage.id` and `updateRect`'s `documentId` are gone. Only the
+   document is closed.
 
 ## Encrypted PDFs
 
