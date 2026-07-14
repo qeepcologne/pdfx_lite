@@ -31,6 +31,9 @@ open pages, which is why this hid).
 Also drops a dead page cache in `PdfDocumentPigeon`: it was allocated, read, and never written, so every `getPage`
 already re-opened the page natively.
 
+Verified on both platforms with `example/lib/page_probe.dart`, which exercises `getPage`, `render`, the texture path,
+and a deliberate render/texture overlap: Android on an API 34 device and an API 37 emulator, iOS by hand.
+
 ## 3.4.1
 
 ### Fixed: `Package.swift` did not declare `FlutterFramework`
