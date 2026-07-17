@@ -21,7 +21,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   #Codegen only — dev deps are not resolved transitively, so nothing here reaches consumers of the package.
   #Regenerate the bridge with: dart run pigeon --input pigeons/messages.dart
-  pigeon: ^27.1.2
+  pigeon: ^27.2.0
 
 flutter:
   plugin:

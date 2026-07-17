@@ -13,7 +13,7 @@ Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 
 ```yaml
 dependencies:
-  pdfx_lite: ^3.6.0
+  pdfx_lite: ^3.7.0
 ```
 
 ```dart
