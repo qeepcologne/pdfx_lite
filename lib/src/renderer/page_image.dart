@@ -47,13 +47,12 @@ class PdfPageImage {
     required Rect? crop,
     required int quality,
     required bool forPrint,
-    required bool removeTempFile,
   }) async {
-    //A caller bug, not a runtime failure: iOS has no WebP encoder at all, so this is knowable up front from
-    //`Platform.isIOS` and should be branched on, not caught. Hence `UnsupportedError` (an `Error`) rather than an
+    //A caller bug, not a runtime failure: iOS has no WebP encoder at all, so this is knowable up front from the
+    //target platform and should be branched on, not caught. Hence `UnsupportedError` (an `Error`) rather than an
     //exception. Without this guard the native side still refuses -- `CompressFormat(rawValue: 2)` is nil -- but it
     //surfaces as an opaque PlatformException("Unsupported format: 2").
-    if (format == PdfPageImageFormat.webp && Platform.isIOS) {
+    if (format == PdfPageImageFormat.webp && defaultTargetPlatform == TargetPlatform.iOS) {
       throw UnsupportedError(
         'PdfPageImageFormat.webp is not supported on iOS: the platform has no '
         'WebP encoder. Use PdfPageImageFormat.png or .jpeg instead.',
@@ -78,39 +77,24 @@ class PdfPageImage {
       ..quality = quality
       ..forPrint = forPrint);
 
-    //android + ios both render to a temp file; the in-memory `result.data` path served windows/web
+    //Both platforms encode the page in memory and return the bytes directly (they used to persist them to a temp
+    //file only to hand back a path this read straight back — see RenderPageReply).
     //
     //Nullable on the wire only because pigeon's fields all are; both platforms always set all three on success, and a
     //failure comes back as a PlatformException rather than a half-filled reply.
-    final path = result.path;
+    final bytes = result.bytes;
     final retWidth = result.width, retHeight = result.height;
-    if (path == null || retWidth == null || retHeight == null) {
+    if (bytes == null || retWidth == null || retHeight == null) {
       throw StateError('pdfx_lite: native renderer returned an incomplete reply');
     }
     return PdfPageImage._(
       pageNumber: pageNumber,
       width: retWidth,
       height: retHeight,
-      bytes: await _readTempFile(path, remove: removeTempFile),
+      bytes: bytes,
       format: format,
       quality: quality,
     );
-  }
-
-  /// Reads a rendered page back from the temp file the native renderer wrote.
-  ///
-  /// These are the *encoded* PNG/JPEG/WebP bytes, not pixels — upstream's name for this (`getPixels`) said otherwise.
-  /// It lived in its own library there because it was a conditional-import seam, swapped for a web implementation.
-  static Future<Uint8List> _readTempFile(
-    String path, {
-    required bool remove,
-  }) async {
-    final file = File(path);
-    final Uint8List bytes = await file.readAsBytes();
-    if (remove) {
-      await file.delete();
-    }
-    return bytes;
   }
 
   @override

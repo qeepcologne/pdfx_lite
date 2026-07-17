@@ -520,51 +520,53 @@ struct RenderPageMessage: Hashable, CustomStringConvertible {
   }
 }
 
-/// Android and iOS both render to a temp file; the in-memory `data` field this
-/// carried upstream served the web/windows renderers and is gone with them.
+/// Encoded PNG/JPEG/WebP bytes of the rendered page. Both platforms build these
+/// in memory anyway (they used to write them to a temp file only to hand back a
+/// path the Dart side read straight back); returning the bytes directly drops
+/// that round-trip and keeps the package free of `dart:io`.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct RenderPageReply: Hashable, CustomStringConvertible {
   var width: Int64? = nil
   var height: Int64? = nil
-  var path: String? = nil
+  var bytes: FlutterStandardTypedData? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> RenderPageReply? {
     let width: Int64? = nilOrValue(pigeonVar_list[0])
     let height: Int64? = nilOrValue(pigeonVar_list[1])
-    let path: String? = nilOrValue(pigeonVar_list[2])
+    let bytes: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[2])
 
     return RenderPageReply(
       width: width,
       height: height,
-      path: path
+      bytes: bytes
     )
   }
   func toList() -> [Any?] {
     return [
       width,
       height,
-      path,
+      bytes,
     ]
   }
   static func == (lhs: RenderPageReply, rhs: RenderPageReply) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return PigeonPigeonInternal.deepEquals(lhs.width, rhs.width) && PigeonPigeonInternal.deepEquals(lhs.height, rhs.height) && PigeonPigeonInternal.deepEquals(lhs.path, rhs.path)
+    return PigeonPigeonInternal.deepEquals(lhs.width, rhs.width) && PigeonPigeonInternal.deepEquals(lhs.height, rhs.height) && PigeonPigeonInternal.deepEquals(lhs.bytes, rhs.bytes)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("RenderPageReply")
     PigeonPigeonInternal.deepHash(value: width, hasher: &hasher)
     PigeonPigeonInternal.deepHash(value: height, hasher: &hasher)
-    PigeonPigeonInternal.deepHash(value: path, hasher: &hasher)
+    PigeonPigeonInternal.deepHash(value: bytes, hasher: &hasher)
   }
 
   public var description: String {
-    return "RenderPageReply(width: \(String(describing: width)), height: \(String(describing: height)), path: \(String(describing: path)))"
+    return "RenderPageReply(width: \(String(describing: width)), height: \(String(describing: height)), bytes: \(String(describing: bytes)))"
   }
 }
 

@@ -30,7 +30,9 @@ PdfViewPinch(controller: controller);
 
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
 2. **Web:** drop the `pdf.js` `<script>` tags from `web/index.html`, and guard any PDF viewing behind `kIsWeb`,
-   falling back to the browser's native viewer.
+   falling back to the browser's native viewer. The package still has no web renderer (every native call throws on
+   web), but importing it does **not** break a web build — it holds no `dart:io` import, so a `kIsWeb` runtime guard
+   is enough and no conditional-import seam is needed to keep it out of the web bundle.
 3. **Drop `hasPdfSupport()`** — it was hardcoded `true`.
 4. **`PdfView` → `PdfViewPinch`** (and `PdfController` → `PdfControllerPinch`). The image-backed viewer is gone with
    the unmaintained `photo_view` it wrapped. To rebuild it: `PdfPageImageProvider` is still exported.
@@ -79,7 +81,7 @@ Otherwise catch:
 | **Dart** | | |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
-| Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta`, `synchronized`, `vector_math` remain |
+| Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped; `meta` too (only Pigeon's generated dead import — comes transitively via flutter) — only `synchronized`, `vector_math` remain |
 | Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race, and

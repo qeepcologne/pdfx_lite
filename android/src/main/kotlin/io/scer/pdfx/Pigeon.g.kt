@@ -530,30 +530,32 @@ data class RenderPageMessage (
 }
 
 /**
- * Android and iOS both render to a temp file; the in-memory `data` field this
- * carried upstream served the web/windows renderers and is gone with them.
+ * Encoded PNG/JPEG/WebP bytes of the rendered page. Both platforms build these
+ * in memory anyway (they used to write them to a temp file only to hand back a
+ * path the Dart side read straight back); returning the bytes directly drops
+ * that round-trip and keeps the package free of `dart:io`.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class RenderPageReply (
   val width: Long? = null,
   val height: Long? = null,
-  val path: String? = null
+  val bytes: ByteArray? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): RenderPageReply {
       val width = pigeonVar_list[0] as Long?
       val height = pigeonVar_list[1] as Long?
-      val path = pigeonVar_list[2] as String?
-      return RenderPageReply(width, height, path)
+      val bytes = pigeonVar_list[2] as ByteArray?
+      return RenderPageReply(width, height, bytes)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       width,
       height,
-      path,
+      bytes,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -564,18 +566,18 @@ data class RenderPageReply (
       return true
     }
     val other = other as RenderPageReply
-    return PigeonPigeonUtils.deepEquals(this.width, other.width) && PigeonPigeonUtils.deepEquals(this.height, other.height) && PigeonPigeonUtils.deepEquals(this.path, other.path)
+    return PigeonPigeonUtils.deepEquals(this.width, other.width) && PigeonPigeonUtils.deepEquals(this.height, other.height) && PigeonPigeonUtils.deepEquals(this.bytes, other.bytes)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + PigeonPigeonUtils.deepHash(this.width)
     result = 31 * result + PigeonPigeonUtils.deepHash(this.height)
-    result = 31 * result + PigeonPigeonUtils.deepHash(this.path)
+    result = 31 * result + PigeonPigeonUtils.deepHash(this.bytes)
     return result
   }
   override fun toString(): String {
-    return "RenderPageReply(width=$width, height=$height, path=$path)"
+    return "RenderPageReply(width=$width, height=$height, bytes=${bytes?.contentToString()})"
   }
 }
 

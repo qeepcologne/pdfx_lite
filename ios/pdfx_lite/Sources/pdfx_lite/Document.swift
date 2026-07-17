@@ -69,7 +69,6 @@ final class Page: @unchecked Sendable {
         let stride = Int(bitmapSize.width * 4)
         var tempData = Data(repeating: 0, count: stride * Int(bitmapSize.height))
         var data: Data?
-        var fileURL: URL?
         var success = false
         var transform = renderer.getDrawingTransform(.mediaBox, rect: CGRect(origin: CGPoint.zero, size: bitmapSize), rotate: 0, preserveAspectRatio: true)
         let compressionQuality = CGFloat(quality) / 100
@@ -117,61 +116,22 @@ final class Page: @unchecked Sendable {
                         break;
                 }
 
-                if data != nil {
-                    fileURL = writeToTempFile(data: data!, compressFormat: compressFormat)
-                }
-
                 success = true
             }
         }
-        return success ? Page.DataResult(
+        guard success, let bytes = data else { return nil }
+        return Page.DataResult(
             width: (crop != nil) ? Int(crop!.width) : width,
             height: (crop != nil) ? Int(crop!.height) : height,
-            path: (fileURL != nil) ? fileURL!.path : ""
-        ) : nil
-    }
-
-    func writeToTempFile(data: Data, compressFormat: CompressFormat) -> URL? {
-        // Create missing directories
-        let docURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let cacheURL = docURL.appendingPathComponent("pdf_renderer_cache")
-        if !FileManager.default.fileExists(atPath: cacheURL.path) {
-            do {
-                try FileManager.default.createDirectory(at: cacheURL, withIntermediateDirectories: true, attributes: nil)
-            } catch {
-                print(error.localizedDescription)
-                return nil
-            }
-        }
-        // Create temporary filename
-        let randomFileName = UUID().uuidString.replacingOccurrences(of: "-", with: "")
-        var tempOutFileExtension: String?
-        var tempOutFileName: String?
-        switch(compressFormat) {
-            case CompressFormat.JPEG:
-                tempOutFileExtension = "jpg"
-                break;
-            case CompressFormat.PNG:
-                tempOutFileExtension = "png"
-                break;
-        }
-        tempOutFileName = "\(randomFileName).\(tempOutFileExtension!)"
-        let fileURL = cacheURL.appendingPathComponent(tempOutFileName!)
-        // Write the data to the temporary file
-        do {
-            try data.write(to: fileURL, options: .atomic)
-        } catch {
-            print(error.localizedDescription)
-            return nil
-        }
-        return fileURL
+            bytes: bytes
+        )
     }
 
     /// A value type, so it can be handed back from the render queue to the platform thread.
     struct DataResult: Sendable {
         let width: Int
         let height: Int
-        let path: String
+        let bytes: Data
     }
 }
 

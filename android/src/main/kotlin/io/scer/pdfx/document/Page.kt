@@ -2,17 +2,15 @@ package io.scer.pdfx.document
 
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
-import io.scer.pdfx.utils.toFile
-import java.io.File
+import io.scer.pdfx.utils.toByteArray
 
 /**
- * Render this page to [file].
+ * Render this page and return the encoded image bytes.
  *
  * An extension on the renderer's own page type rather than a class wrapping it: a page lives only for the duration of
  * one [Document.withPage] call, so there is nothing for a wrapper to own.
  */
-fun PdfRenderer.Page.renderToFile(
-    file: File,
+fun PdfRenderer.Page.renderToByteArray(
     width: Int,
     height: Int,
     background: Int,
@@ -35,18 +33,16 @@ fun PdfRenderer.Page.renderToFile(
 
     if (crop && (cropW != width || cropH != height)) {
         val cropped = Bitmap.createBitmap(bitmap, cropX, cropY, cropW, cropH)
-        cropped.toFile(file, format, quality)
         return PageImage(
             cropW,
             cropH,
-            file.absolutePath
+            cropped.toByteArray(format, quality)
         )
     } else {
-        bitmap.toFile(file, format, quality)
         return PageImage(
             width,
             height,
-            file.absolutePath
+            bitmap.toByteArray(format, quality)
         )
     }
 }
@@ -54,5 +50,5 @@ fun PdfRenderer.Page.renderToFile(
 data class PageImage(
     val width: Int,
     val height: Int,
-    val path: String
+    val bytes: ByteArray
 )

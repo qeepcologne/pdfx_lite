@@ -501,26 +501,28 @@ class RenderPageMessage {
   }
 }
 
-/// Android and iOS both render to a temp file; the in-memory `data` field this
-/// carried upstream served the web/windows renderers and is gone with them.
+/// Encoded PNG/JPEG/WebP bytes of the rendered page. Both platforms build these
+/// in memory anyway (they used to write them to a temp file only to hand back a
+/// path the Dart side read straight back); returning the bytes directly drops
+/// that round-trip and keeps the package free of `dart:io`.
 class RenderPageReply {
   RenderPageReply({
     this.width,
     this.height,
-    this.path,
+    this.bytes,
   });
 
   int? width;
 
   int? height;
 
-  String? path;
+  Uint8List? bytes;
 
   List<Object?> _toList() {
     return <Object?>[
       width,
       height,
-      path,
+      bytes,
     ];
   }
 
@@ -532,7 +534,7 @@ class RenderPageReply {
     return RenderPageReply(
       width: result[0] as int?,
       height: result[1] as int?,
-      path: result[2] as String?,
+      bytes: result[2] as Uint8List?,
     );
   }
 
@@ -545,7 +547,7 @@ class RenderPageReply {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(width, other.width) && _deepEquals(height, other.height) && _deepEquals(path, other.path);
+    return _deepEquals(width, other.width) && _deepEquals(height, other.height) && _deepEquals(bytes, other.bytes);
   }
 
   @override
@@ -554,7 +556,7 @@ class RenderPageReply {
 
   @override
   String toString() {
-    return 'RenderPageReply(width: $width, height: $height, path: $path)';
+    return 'RenderPageReply(width: $width, height: $height, bytes: $bytes)';
   }
 }
 

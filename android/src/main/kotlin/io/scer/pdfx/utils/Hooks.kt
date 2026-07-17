@@ -1,8 +1,8 @@
 package io.scer.pdfx.utils
 
 import android.graphics.Bitmap
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStream
 
 fun InputStream.toFile(file: File) {
@@ -10,12 +10,10 @@ fun InputStream.toFile(file: File) {
 }
 
 /**
- * Save bitmap to file
+ * Encode bitmap to a byte array in the requested format. Returned straight over the pigeon bridge, no temp file.
  */
-fun Bitmap.toFile(file: File, format: Int, quality: Int = 100): File {
-    FileOutputStream(file, false).use { stream ->
+fun Bitmap.toByteArray(format: Int, quality: Int = 100): ByteArray =
+    ByteArrayOutputStream().use { stream ->
         this.compress(parseCompressFormat(format, quality), quality, stream)
-        stream.flush()
+        stream.toByteArray()
     }
-    return file
-}

@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
-import 'package:meta/meta.dart';
 import 'package:pdfx_lite/src/renderer/pigeon.dart';
 import 'package:synchronized/synchronized.dart';
 

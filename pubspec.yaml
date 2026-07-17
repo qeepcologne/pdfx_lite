@@ -1,7 +1,7 @@
 name: pdfx_lite
 description: Minimal, legacy-free PDF rendering & viewing for Flutter (Android + iOS) — no CocoaPods, SPM-only, no web/desktop renderers. Replacement for pdfx.
 repository: https://github.com/qeepcologne/pdfx_lite
-version: 3.6.0+1
+version: 3.7.0
 
 environment:
   sdk: ^3.12.0
@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  meta: ^1.18.0
   synchronized: ^3.4.1
   #`vector_math_64` (Quad/Vector3/Matrix4) for the pinch viewer's transform maths. Flutter pins this to 2.2.0.
   #2.2.0 is the floor, not a preference: `translateByDouble`/`scaleByDouble` do not exist before it.

@@ -190,7 +190,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
                 let reply = RenderPageReply(
                     width: Int64(data.width),
                     height: Int64(data.height),
-                    path: data.path
+                    bytes: FlutterStandardTypedData(bytes: data.bytes)
                 )
                 DispatchQueue.main.async {
                     boxed.value(.success(reply))

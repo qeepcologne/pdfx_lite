@@ -1,3 +1,23 @@
+## 3.7.0
+
+### `render()` returns the bytes directly — no temp file, no `dart:io`
+
+Both platforms already encoded the page into an in-memory buffer and then wrote it to a temp file in
+`pdf_renderer_cache/` purely so the reply could carry a *path*, which the Dart side immediately read back into a
+`Uint8List` and (usually) deleted. The bytes now travel over the pigeon bridge directly: `RenderPageReply.path`
+(`String`) became `RenderPageReply.bytes` (`Uint8List`). iOS drops `writeToTempFile`; Android encodes to a
+`ByteArrayOutputStream` instead of a `FileOutputStream` — no `cacheDir` write, and no orphaned files left behind on
+the (previously reachable) path where deletion was skipped.
+
+With the round-trip gone, the package no longer imports `dart:io` at all — the last two uses were the temp-file read
+and a `Platform.isIOS` guard (now `defaultTargetPlatform`). **`pdfx_lite` compiles for web** as a result (it still has
+no web *renderer* — every native call throws — but a web build of a consuming app no longer fails at compile time on
+the unavoidable `dart:io` import, so a conditional `showPdfSheet`/stub split in the app is no longer needed).
+
+**Breaking** only for the `@visibleForTesting removeTempFile` parameter on `PdfPage.render()`, which is removed —
+there is no temp file to leave behind. `render()` otherwise returns the same `PdfPageImage` with the same `.bytes`;
+normal callers are unaffected.
+
 ## 3.6.0
 
 ### Dropped two abstractions with one implementor each

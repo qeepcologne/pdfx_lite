@@ -14,7 +14,7 @@ import android.view.Surface
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.view.TextureRegistry
 import io.flutter.view.TextureRegistry.SurfaceProducer.Callback
-import io.scer.pdfx.document.renderToFile
+import io.scer.pdfx.document.renderToByteArray
 import io.scer.pdfx.resources.DocumentRepository
 import io.scer.pdfx.resources.RepositoryItemNotFoundException
 import io.scer.pdfx.utils.randomFilename
@@ -254,23 +254,9 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 val quality = message.quality?.toInt() ?: 100
                 val forPrint = message.forPrint ?: false
 
-                val tempOutFileExtension = when (format) {
-                    0 -> "jpg"
-                    1 -> "png"
-                    2 -> "webp"
-                    else -> "jpg"
-                }
-
-                val tempOutFolder = File(binding.applicationContext.cacheDir, "pdf_renderer_cache").apply {
-                    mkdirs()
-                }
-
-                val tempOutFile = File(tempOutFolder, "$randomFilename.$tempOutFileExtension")
-
                 //  background thread render
                 val pageImage = documents.get(documentId).withPage(pageNumber) { page ->
-                    page.renderToFile(
-                        file = tempOutFile,
+                    page.renderToByteArray(
                         width = width,
                         height = height,
                         background = color,
@@ -289,7 +275,7 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                     callback(Result.success(RenderPageReply(
                         width = pageImage.width.toLong(),
                         height = pageImage.height.toLong(),
-                        path = pageImage.path,
+                        bytes = pageImage.bytes,
                     )))
                 }
             } catch (e: Exception) {

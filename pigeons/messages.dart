@@ -59,12 +59,14 @@ class RenderPageMessage {
   bool? forPrint;
 }
 
-/// Android and iOS both render to a temp file; the in-memory `data` field this
-/// carried upstream served the web/windows renderers and is gone with them.
+/// Encoded PNG/JPEG/WebP bytes of the rendered page. Both platforms build these
+/// in memory anyway (they used to write them to a temp file only to hand back a
+/// path the Dart side read straight back); returning the bytes directly drops
+/// that round-trip and keeps the package free of `dart:io`.
 class RenderPageReply {
   int? width;
   int? height;
-  String? path;
+  Uint8List? bytes;
 }
 
 class RegisterTextureReply {
