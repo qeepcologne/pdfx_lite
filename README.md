@@ -81,7 +81,7 @@ Otherwise catch:
 | **Dart** | | |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
-| Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped; `meta` too (only Pigeon's generated dead import — comes transitively via flutter) — only `synchronized`, `vector_math` remain |
+| Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta` (required by Pigeon's generated bridge import), `synchronized`, `vector_math` remain |
 | Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race, and

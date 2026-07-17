@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  #required only by Pigeon's generated bridge import (`show immutable, protected, visibleForTesting`); the symbols
+  #are unused but `dart pub publish` still enforces the referenced-package rule, so it must stay declared.
+  meta: ^1.18.0
   synchronized: ^3.4.1
   #`vector_math_64` (Quad/Vector3/Matrix4) for the pinch viewer's transform maths. Flutter pins this to 2.2.0.
   #2.2.0 is the floor, not a preference: `translateByDouble`/`scaleByDouble` do not exist before it.

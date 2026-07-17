@@ -18,6 +18,10 @@ the unavoidable `dart:io` import, so a conditional `showPdfSheet`/stub split in 
 there is no temp file to leave behind. `render()` otherwise returns the same `PdfPageImage` with the same `.bytes`;
 normal callers are unaffected.
 
+### Dependencies
+
+Pigeon bumped to 27.2.0; the regenerated Dart/Kotlin/Swift bridge is byte-identical apart from the version stamp.
+
 ## 3.6.0
 
 ### Dropped two abstractions with one implementor each
