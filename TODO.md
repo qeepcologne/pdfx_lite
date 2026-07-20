@@ -3,6 +3,10 @@
 Work carried over from upstream [`ScerIO/packages.flutter`](https://github.com/ScerIO/packages.flutter) — bugs and PRs
 still relevant now that `pdfx_lite` is Android + iOS only. Issue/PR numbers are upstream's.
 
+**Fixed since:** #554 (iOS aspect-ratio distortion on rotated pages) — 3.8.0. Root cause was `getPage` reporting the
+unrotated mediaBox while the texture path worked in rotated space; iOS now reports the displayed size, matching
+Android. Verified on both platforms with `example/lib/rotation_probe.dart` and `example/assets/rotated90.pdf`.
+
 ## 1. Needs verification
 
 Upstream reports that plausibly still apply to us, but which nobody has reproduced against this codebase. **Reproduce
@@ -10,10 +14,9 @@ before fixing** — several may already be dead, or may not be ours to fix.
 
 | # | Report | Where to look | Repro needed |
 |---|---|---|---|
-| #554 | iOS: aspect-ratio distortion on landscape PDFs — **do this one first**, it decides the PDFKit question in §2 | `ios/.../Document.swift` — `isLandscape` swaps width/height and feeds the drawing transform | A rotated / landscape page on iOS, compared against the same page on Android |
 | #560 | Android: blurry/broken text since Flutter 3.27 | `Messages.kt` `onDocumentOrSurfaceChanged` — the texture `Matrix` is built from `fullWidth / page.width` | High-DPI device; suspect we render at texture size, not device pixel ratio |
 | #585 | Blurry text when pinch-zooming in landscape | same texture path as #560 — probably the same bug | Zoom in hard on a landscape page |
-| #532 | Wrong height returned for certain documents | `getPage` returns the native renderer's `width`/`height` verbatim | Needs the reporter's PDF |
+| #532 | Wrong height returned for certain documents | possibly **already fixed** in 3.8.0 — iOS's `getPage` used to report the raw mediaBox, so any rotated page came back with height and width swapped | Needs the reporter's PDF to confirm |
 | #557 | Cyrillic characters not displayed on Android | Platform `PdfRenderer` font embedding — quite possibly **not ours** | Needs the reporter's PDF |
 
 ## 2. Annotations are not rendered — on either platform · #592, #584
@@ -32,12 +35,13 @@ So: Android is blocked on Android 15, iOS is a rewrite. Do neither speculatively
 
 ### Should iOS move to PDFKit at all?
 
-Probably, eventually — but it needs a driver, and **#554 is the experiment that decides it.**
+**The driver is gone.** #554 was the experiment that would have decided it, and it turned out to be a sizing bug, not
+a rendering-engine one: `getPage` reported the unrotated mediaBox while the texture path worked in rotated space.
+Fixed in 3.8.0 without leaving Core Graphics, and the hand-rolled `getDrawingTransform` workaround that PDFKit would
+have replaced is gone too — `Document.render` now builds its transform explicitly and handles rotation itself.
 
-PDFKit is Apple's modern PDF API (`CGPDFDocument` is the low-level legacy one). It would render annotations, links and
-form fields. It also handles page rotation and display boxes itself, which is *exactly* the hand-rolled `isLandscape` /
-`getDrawingTransform` code that #554 blames. So if #554 reproduces, PDFKit stops being a speculative modernisation and
-becomes the fix for a confirmed bug, with annotations riding along.
+PDFKit is Apple's modern PDF API (`CGPDFDocument` is the low-level legacy one), and it would still render annotations,
+links and form fields. But with #554 closed, nothing broken is waiting on it.
 
 (It would *not* buy encrypted-document support — `CGPDFDocument.unlockWithPassword` already gives us that on iOS.)
 
