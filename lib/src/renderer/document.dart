@@ -23,6 +23,16 @@ class PdfDocument {
   /// Is the document closed
   bool isClosed = false;
 
+  /// Serializes this document's use against its own close.
+  ///
+  /// Not for the native side's benefit — both platforms guard their own state. It closes the gap in
+  /// `if (isClosed) throw; await _api.something()`: the check and the call sit either side of an `await`, so without
+  /// this a `close()` can land between them and the native call arrives at a document that is already gone.
+  ///
+  /// Per document, not global: two documents share nothing, so serializing one behind the other only made an
+  /// unrelated render wait.
+  final Lock _lock = Lock();
+
   /// Whether this device can open encrypted PDFs at all.
   ///
   /// Always true on iOS. On Android it is true only from **API 35** (Android

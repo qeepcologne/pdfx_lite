@@ -36,9 +36,12 @@ private struct UncheckedSendable<T>: @unchecked Sendable {
     let value: T
 }
 
-/// `@unchecked Sendable`: the repositories are lock-guarded (see `Repository`), `textures` is only touched on the
-/// platform thread, and `registrar`/`dispQueue` are immutable. Cannot be actor-isolated instead — the generated
-/// `PdfxApi` protocol is non-isolated, so an isolated type could not conform to it.
+/// `@unchecked Sendable`: `textures` is only touched on the platform thread (no pigeon task queue is set, so every
+/// generated handler runs there), `registrar`/`dispQueue` are immutable, and the document map is lock-guarded by
+/// `Repository` while each `CGPDFDocument` behind it is lock-guarded by `Document` itself — the latter matters,
+/// because the repository's lock only ever protected the dictionary, not the documents it hands out.
+/// Cannot be actor-isolated instead — the generated `PdfxApi` protocol is non-isolated, so an isolated type could
+/// not conform to it.
 public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked Sendable {
     let registrar: FlutterPluginRegistrar
     let dispQueue = DispatchQueue(label: "io.scer.pdf_renderer")
@@ -55,6 +58,19 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
             binaryMessenger: registrar.messenger(),
             api: SwiftPdfxPlugin(registrar: registrar)
         )
+    }
+
+    /// Release every document and texture when the engine goes away.
+    ///
+    /// Nothing else does: `documents` and `textures` are emptied only by an explicit `closeDocument` /
+    /// `unregisterTexture` from Dart, which never arrives if the engine is torn down first (hot restart, or an
+    /// add-to-app host dropping the engine). Each open `CGPDFDocument` retains the whole file's backing data.
+    public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
+        for texId in textures.keys {
+            registrar.textures().unregisterTexture(texId)
+        }
+        textures.removeAll()
+        documents.clear()
     }
 
     func openDocumentData(message: OpenDataMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
@@ -112,9 +128,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
     }
 
     func closeDocument(message: IdMessage) throws {
-        if let id = message.id {
-            documents.close(id: id)
+        guard let id = message.id else {
+            throw renderError("Need call arguments: id!")
         }
+        //Idempotent on both platforms: closing an unknown or already-closed id is a no-op, not an error.
+        documents.close(id: id)
     }
 
     func getPage(message: GetPageMessage, completion: @escaping (Result<GetPageReply, Error>) -> Void) {
@@ -122,14 +140,14 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
             return completion(.failure(renderError("Need call arguments: documentId & pageNumber")))
         }
         do {
-            guard let page = try documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+            let reply = try documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
+                GetPageReply(width: page.width, height: page.height)
+            }
+            guard let reply else {
                 return completion(.failure(renderError("No page \(pageNumber) in document")))
             }
 
-            completion(.success(GetPageReply(
-                width: page.width,
-                height: page.height
-            )))
+            completion(.success(reply))
         } catch let err {
             completion(.failure(renderError("Unexpected error: \(err).")))
         }
@@ -139,12 +157,14 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         guard let documentId = message.documentId,
               let pageNumber = message.pageNumber,
               let width = message.width,
-              let height = message.height,
-              let format = message.format,
-              let backgroundColor = message.backgroundColor,
-              let quality = message.quality else {
+              let height = message.height else {
             return completion(.failure(renderError("Missing render arguments")))
         }
+        //Defaulted to match Android, which has always defaulted these. The schema declares them optional, so a call
+        //that Android renders must not fail outright here.
+        let format = message.format ?? Int64(CompressFormat.PNG.rawValue)
+        let backgroundColor = message.backgroundColor ?? "#00FFFFFF"
+        let quality = message.quality ?? 100
         guard let compressFormat = CompressFormat(rawValue: Int(format)) else {
             return completion(.failure(renderError("Unsupported format: \(format)")))
         }
@@ -169,21 +189,26 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
 
         dispQueue.async {
             do {
-                guard let page = try self.documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+                //The whole render happens under the document's lock, so it cannot overlap a texture update touching
+                //the same CGPDFDocument from the platform thread.
+                let rendered = try self.documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
+                    page.render(
+                        width: Int(width),
+                        height: Int(height),
+                        crop: cropZone,
+                        compressFormat: compressFormat,
+                        backgroundColor: backgroundColor,
+                        quality: Int(quality)
+                    )
+                }
+                guard let rendered else {
                     return DispatchQueue.main.async {
                         boxed.value(.failure(renderError("No page \(pageNumber) in document")))
                     }
                 }
-                guard let data = page.render(
-                    width: Int(width),
-                    height: Int(height),
-                    crop: cropZone,
-                    compressFormat: compressFormat,
-                    backgroundColor: backgroundColor,
-                    quality: Int(quality)
-                ) else {
+                guard let data = rendered else {
                     return DispatchQueue.main.async {
-                        boxed.value(.failure(renderError("Page render produced no file")))
+                        boxed.value(.failure(renderError("Page render produced no image")))
                     }
                 }
 
@@ -205,9 +230,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
 
     func registerTexture() throws -> RegisterTextureReply {
         let pageTex = PdfPageTexture(registrar: registrar)
+        //`register` can start serving `copyPixelBuffer` immediately, so everything the texture needs must be set
+        //before it is handed over — `texId` was previously assigned afterwards.
         let texId = registrar.textures().register(pageTex)
-        textures[texId] = pageTex
         pageTex.texId = texId
+        textures[texId] = pageTex
         return RegisterTextureReply(id: texId)
     }
 
@@ -247,26 +274,27 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
 
         do {
-            guard let page = try documents.get(id: documentId).openPage(pageNumber: Int(pageNumber)) else {
+            let drawn: Void? = try documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
+                try pageTex.updateTex(
+                    page: page.renderer,
+                    destX: Int(message.destinationX ?? 0),
+                    destY: Int(message.destinationY ?? 0),
+                    width: Int(width),
+                    height: Int(height),
+                    srcX: Int(message.sourceX ?? 0),
+                    srcY: Int(message.sourceY ?? 0),
+                    fullWidth: message.fullWidth,
+                    fullHeight: message.fullHeight,
+                    backgroundColor: message.backgroundColor,
+                    allowAntialiasing: message.allowAntiAliasing ?? true
+                )
+            }
+            guard drawn != nil else {
                 return completion(.failure(renderError("No page \(pageNumber) in document")))
             }
-
-            try pageTex.updateTex(
-                page: page.renderer,
-                destX: Int(message.destinationX ?? 0),
-                destY: Int(message.destinationY ?? 0),
-                width: Int(width),
-                height: Int(height),
-                srcX: Int(message.sourceX ?? 0),
-                srcY: Int(message.sourceY ?? 0),
-                fullWidth: message.fullWidth,
-                fullHeight: message.fullHeight,
-                backgroundColor: message.backgroundColor,
-                allowAntialiasing: message.allowAntiAliasing ?? true
-            )
             completion(.success(()))
         } catch {
-            completion(.failure(renderError("Cannot render texture")))
+            completion(.failure(renderError("Cannot render texture: \(error)")))
         }
     }
 
@@ -373,11 +401,16 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
       throw PdfRenderError.operationFailed("CVPixelBufferCreate failed: result code=\(cvRet)")
     }
 
+    //The destination sub-rect must lie inside the buffer: `destX`/`destY`/`width`/`height` come straight from the
+    //public `updateRect`, and CoreGraphics would otherwise write past the end of the pixel buffer.
+    guard destX >= 0, destY >= 0, width > 0, height > 0,
+          destX + width <= texWidth, destY + height <= texHeight else {
+      throw PdfRenderError.operationFailed(
+        "rect (\(destX),\(destY),\(width),\(height)) does not fit texture \(texWidth)x\(texHeight)")
+    }
+
     let lockFlags = CVPixelBufferLockFlags(rawValue: 0)
     let _ = CVPixelBufferLockBaseAddress(pixBuf!, lockFlags)
-    defer {
-      CVPixelBufferUnlockBaseAddress(pixBuf!, lockFlags)
-    }
 
     let bufferAddress = CVPixelBufferGetBaseAddress(pixBuf!)
     let bytesPerRow = CVPixelBufferGetBytesPerRow(pixBuf!)
@@ -391,23 +424,34 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
                             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
 
 
-    if backgroundColor != nil {
-            context?.setFillColor(UIColor(hexString: backgroundColor!).cgColor)
-        context?.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    //A nil context used to be optional-chained into a series of no-ops and then reported as success, handing back a
+    //blank texture with no error at all.
+    guard let context else {
+      CVPixelBufferUnlockBaseAddress(pixBuf!, lockFlags)
+      throw PdfRenderError.operationFailed("CGContext creation failed for \(width)x\(height)")
     }
 
-    context?.setAllowsAntialiasing(allowAntialiasing)
+    if let backgroundColor {
+      context.setFillColor(UIColor(hexString: backgroundColor).cgColor)
+      context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    }
 
-    context?.translateBy(x: CGFloat(-srcX), y: CGFloat(Double(srcY + height) - fh))
-    context?.scaleBy(x: sx, y: sy)
-    context?.concatenate(page.getRotationTransform())
-    context?.drawPDFPage(page)
-    context?.flush()
+    context.setAllowsAntialiasing(allowAntialiasing)
+
+    context.translateBy(x: CGFloat(-srcX), y: CGFloat(Double(srcY + height) - fh))
+    context.scaleBy(x: sx, y: sy)
+    context.concatenate(page.getRotationTransform())
+    context.drawPDFPage(page)
+    context.flush()
+
+    //Unlock BEFORE publishing: the engine's raster thread calls `copyPixelBuffer` as soon as it sees the buffer, and
+    //it must not read one still locked for CPU access. The old `defer` released it only after both lines below.
+    CVPixelBufferUnlockBaseAddress(pixBuf!, lockFlags)
 
     lock.lock()
     self.pixBuf = pixBuf
     lock.unlock()
-      registrar?.textures().textureFrameAvailable(texId)
+    registrar?.textures().textureFrameAvailable(texId)
   }
 }
 

@@ -1,10 +1,18 @@
 import UIKit
 
 /// `@unchecked Sendable`: immutable, but wraps a `CGPDFDocument`, which carries no Sendable conformance.
-/// Reached from the platform thread and the render queue; see `Repository`, which holds the lock.
+///
+/// The lock below is what makes the "unchecked" honest. `Repository`'s own lock guards only the *dictionary* — once
+/// it hands a `Document` out, two callers hold the same `CGPDFDocument`, and that is not safe for concurrent use:
+/// `renderPage` rasterizes on the render queue while `updateTexture` and `getPage` touch the same document from the
+/// platform thread, sharing its page cache and xref parser. Every use goes through [withPage] or [pagesCount].
+///
+/// This mirrors Android, where `Document.withPage` serializes for the same reason (there, because `PdfRenderer`
+/// permits only one open page at a time).
 final class Document: @unchecked Sendable {
     let id: String
-    let renderer: CGPDFDocument
+    private let renderer: CGPDFDocument
+    private let lock = NSLock()
 
     init(id: String, renderer: CGPDFDocument) {
         self.id = id
@@ -12,20 +20,22 @@ final class Document: @unchecked Sendable {
     }
 
     var pagesCount: Int {
-        get {
-            return renderer.numberOfPages
-        }
+        lock.lock()
+        defer { lock.unlock() }
+        return renderer.numberOfPages
     }
 
     /**
-     * Open page by page number (not index!)
+     * Open page [pageNumber] (not index!), hand it to `block`, and drop it again.
      *
-     * The page is not retained anywhere: it is fetched for the duration of one call and dropped, mirroring Android,
-     * where `PdfRenderer` permits only one open page per document and holding one across calls is impossible.
+     * The page is not retained anywhere: it lives for the duration of one call, mirroring Android, where
+     * `PdfRenderer` permits only one open page per document and holding one across calls is impossible.
      */
-    public func openPage(pageNumber: Int) -> Page? {
+    func withPage<T>(pageNumber: Int, _ block: (Page) throws -> T) rethrows -> T? {
+        lock.lock()
+        defer { lock.unlock() }
         guard let page = renderer.page(at: pageNumber) else { return nil }
-        return Page(renderer: page)
+        return try block(Page(renderer: page))
     }
 }
 
@@ -99,11 +109,15 @@ final class Page: @unchecked Sendable {
                 context!.setFillColor(UIColor(hexString: backgroundColor).cgColor)
                 context!.fill(box)
                 context!.drawPDFPage(renderer)
-                var image = UIImage(cgImage: context!.makeImage()!)
+                //`makeImage` can fail; force-unwrapping it crashed the app where every other failure in this function
+                //returns nil and surfaces as a clean error.
+                guard let rendered = context!.makeImage() else { return }
+                var image = UIImage(cgImage: rendered)
 
-                if (crop != nil) {
-                    // Perform cropping in Core Graphics
-                    let cutImageRef: CGImage = (image.cgImage?.cropping(to:crop!))!
+                if let crop {
+                    //`cropping(to:)` returns nil when the rect does not intersect the image -- reachable from the
+                    //public `render(cropRect:)` with an out-of-bounds rect, and previously a guaranteed crash.
+                    guard let cutImageRef = image.cgImage?.cropping(to: crop) else { return }
                     image = UIImage(cgImage: cutImageRef)
                 }
 
@@ -120,9 +134,12 @@ final class Page: @unchecked Sendable {
             }
         }
         guard success, let bytes = data else { return nil }
+        //Report what was actually produced, not what was asked for. For a page with /Rotate 90 or 270 the bitmap is
+        //transposed above (`bitmapSize`), so returning the requested `width`/`height` labelled a height x width image
+        //as width x height -- and the caller laid it out at the wrong aspect ratio. That is upstream #554.
         return Page.DataResult(
-            width: (crop != nil) ? Int(crop!.width) : width,
-            height: (crop != nil) ? Int(crop!.height) : height,
+            width: (crop != nil) ? Int(crop!.width) : Int(bitmapSize.width),
+            height: (crop != nil) ? Int(crop!.height) : Int(bitmapSize.height),
             bytes: bytes
         )
     }

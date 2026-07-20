@@ -25,6 +25,7 @@ import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,11 +33,17 @@ import kotlinx.coroutines.withContext
 private const val CHANNEL = "pdf_renderer"
 
 /**
+ * The generic failure code, shared verbatim with iOS. Android previously reported [CHANNEL] ("pdf_renderer") here
+ * while iOS reported "RENDER_ERROR", so a caller switching on `PlatformException.code` had to special-case both.
+ */
+private const val RENDER_ERROR = "RENDER_ERROR"
+
+/**
  * The error code for an encrypted PDF whose password was absent or wrong, shared verbatim with iOS and with the Dart
  * side, which turns it into `PdfPasswordProtectedException`. [PdfRenderer] reports both cases as [SecurityException]
  * and does not distinguish them, so neither do we.
  *
- * Every other failure here still reports [CHANNEL] as its code.
+ * Every other failure here reports [RENDER_ERROR].
  */
 private const val PASSWORD_PROTECTED = "PDF_PASSWORD_PROTECTED"
 
@@ -74,6 +81,9 @@ class CreateRendererException : Exception()
 class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                private val documents: DocumentRepository) : PdfxApi {
 
+    //Reused: allocating a Paint per texture update would allocate on every frame of a scroll.
+    private val antiAliasPaint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+
     private val surfaceProducers: SparseArray<TextureRegistry.SurfaceProducer> = SparseArray()
     private val documentStatesPerSurface: SparseArray<UpdateTextureMessage> = SparseArray()
 
@@ -84,6 +94,29 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
     /** Called from [PdfxPlugin.onDetachedFromEngine]. Abandons any in-flight render. */
     fun dispose() {
         scope.cancel()
+        //The producers outlive the engine otherwise: only an explicit `unregisterTexture` from Dart ever released
+        //them, which never arrives if the engine goes away first.
+        for (i in 0 until surfaceProducers.size()) {
+            surfaceProducers.valueAt(i).let {
+                it.setCallback(null)
+                it.release()
+            }
+        }
+        surfaceProducers.clear()
+        documentStatesPerSurface.clear()
+    }
+
+    /**
+     * Parse a `#RRGGBB`/`#AARRGGBB` string, falling back instead of throwing.
+     *
+     * [Color.parseColor] throws on anything it cannot read, so a typo'd colour used to fail the whole render on
+     * Android while iOS's `UIColor(hexString:)` quietly fell back and rendered. Now both degrade the same way.
+     */
+    private fun parseColorOrTransparent(value: String): Int = try {
+        Color.parseColor(value)
+    } catch (e: IllegalArgumentException) {
+        Log.w(CHANNEL, "Unparseable backgroundColor '$value'; falling back to transparent")
+        Color.TRANSPARENT
     }
 
     override fun isPasswordSupported(): Boolean =
@@ -108,11 +141,11 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         } catch (e: SecurityException) {
             callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Can't open file")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Can't open file")))
         } catch (e: CreateRendererException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Can't create PDF renderer")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Can't create PDF renderer")))
         } catch (e: Exception) {
-            callback(Result.failure(FlutterError(CHANNEL, "Unknown error")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Unknown error")))
         }
     }
 
@@ -128,9 +161,9 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 pagesCount = document.pagesCount.toLong(),
             )))
         } catch (e: NullPointerException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: path")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: path")))
         } catch (e: FileNotFoundException) {
-            callback(Result.failure(FlutterError(CHANNEL, "File not found")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "File not found")))
         } catch (e: PasswordUnsupportedException) {
             callback(Result.failure(FlutterError(
                 PASSWORD_UNSUPPORTED,
@@ -139,11 +172,11 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         } catch (e: SecurityException) {
             callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Can't open file")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Can't open file")))
         } catch (e: CreateRendererException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Can't create PDF renderer")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Can't create PDF renderer")))
         } catch (e: Exception) {
-            callback(Result.failure(FlutterError(CHANNEL, "Unknown error")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Unknown error")))
         }
     }
 
@@ -159,9 +192,9 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                 pagesCount = document.pagesCount.toLong(),
             )))
         } catch (e: NullPointerException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: path")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: path")))
         } catch (e: FileNotFoundException) {
-            callback(Result.failure(FlutterError(CHANNEL, "File not found")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "File not found")))
         } catch (e: PasswordUnsupportedException) {
             callback(Result.failure(FlutterError(
                 PASSWORD_UNSUPPORTED,
@@ -170,23 +203,23 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         } catch (e: SecurityException) {
             callback(Result.failure(FlutterError(PASSWORD_PROTECTED, "The PDF is password-protected")))
         } catch (e: IOException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Can't open file")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Can't open file")))
         } catch (e: CreateRendererException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Can't create PDF renderer")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Can't create PDF renderer")))
         } catch (e: Exception) {
-            callback(Result.failure(FlutterError(CHANNEL, "Unknown error")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Unknown error")))
         }
     }
 
     override fun closeDocument(message: IdMessage) {
+        val id = message.id ?: throw FlutterError(RENDER_ERROR, "Need call arguments: id!")
         try {
-            documents.close(message.id!!)
-        } catch (e: NullPointerException) {
-            throw FlutterError(CHANNEL, "Need call arguments: id!")
+            documents.close(id)
         } catch (e: RepositoryItemNotFoundException) {
-            throw FlutterError(CHANNEL, "Document not exist in documents repository")
+            //Idempotent, matching iOS, which simply drops the key. Closing an already-closed document was an
+            //exception here and a no-op there for the very same call.
         } catch (e: Exception) {
-            throw FlutterError(CHANNEL, "Unknown error")
+            throw FlutterError(RENDER_ERROR, "Unknown error")
         }
     }
 
@@ -207,11 +240,11 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
 
             callback(Result.success(reply))
         } catch (e: NullPointerException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Need call arguments: documentId & page!")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: documentId & page!")))
         } catch (e: RepositoryItemNotFoundException) {
-            callback(Result.failure(FlutterError(CHANNEL, "Document not exist in documents")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Document not exist in documents")))
         } catch (e: Exception) {
-            callback(Result.failure(FlutterError(CHANNEL, "Unknown error")))
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Unknown error")))
         }
     }
 
@@ -222,28 +255,36 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         scope.launch {
             try {
                 val documentId = message.documentId ?: run {
-                    callback(Result.failure(FlutterError(CHANNEL, "Document ID is null")))
+                    withContext(Dispatchers.Main) {
+                        callback(Result.failure(FlutterError(RENDER_ERROR, "Document ID is null")))
+                    }
                     return@launch
                 }
 
                 val pageNumber = message.pageNumber?.toInt() ?: run {
-                    callback(Result.failure(FlutterError(CHANNEL, "Page number is null")))
+                    withContext(Dispatchers.Main) {
+                        callback(Result.failure(FlutterError(RENDER_ERROR, "Page number is null")))
+                    }
                     return@launch
                 }
 
                 val width = message.width?.toInt() ?: run {
-                    callback(Result.failure(FlutterError(CHANNEL, "Width is null")))
+                    withContext(Dispatchers.Main) {
+                        callback(Result.failure(FlutterError(RENDER_ERROR, "Width is null")))
+                    }
                     return@launch
                 }
 
                 val height = message.height?.toInt() ?: run {
-                    callback(Result.failure(FlutterError(CHANNEL, "Height is null")))
+                    withContext(Dispatchers.Main) {
+                        callback(Result.failure(FlutterError(RENDER_ERROR, "Height is null")))
+                    }
                     return@launch
                 }
 
                 val format = message.format?.toInt() ?: 1
                 val backgroundColor = message.backgroundColor
-                val color = backgroundColor?.let { Color.parseColor(it) } ?: Color.TRANSPARENT
+                val color = backgroundColor?.let { parseColorOrTransparent(it) } ?: Color.TRANSPARENT
 
                 val crop = message.crop ?: false
                 val cropX = if (crop) message.cropX?.toInt() ?: 0 else 0
@@ -278,9 +319,14 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
                         bytes = pageImage.bytes,
                     )))
                 }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                //The scope was cancelled (engine detach); the channel is gone, so there is nobody to reply to.
+                throw e
+            } catch (e: Throwable) {
+                //`Throwable`, not `Exception`: a large render fails with OutOfMemoryError, which is an Error -- and
+                //letting it escape leaves the callback uninvoked and the Dart future pending forever.
                 withContext(Dispatchers.Main) {
-                    callback(Result.failure(FlutterError(CHANNEL, "Unexpected error", e.toString())))
+                    callback(Result.failure(FlutterError(RENDER_ERROR, "Unexpected error", e.toString())))
                 }
             }
         }
@@ -314,15 +360,28 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         message: UpdateTextureMessage,
         callback: (Result<Unit>) -> Unit
     ) {
-        val texId = message.textureId!!.toInt()
-        val surfaceProducer = surfaceProducers[texId]
-        val texWidth = message.textureWidth!!.toInt()
-        val texHeight = message.textureHeight!!.toInt()
-        if (texWidth != 0 && texHeight != 0) {
-            surfaceProducer.setSize(texWidth, texHeight)
+        //Everything is inside the try: pigeon generates no error handling around an @async host method, so an
+        //exception escaping here means the reply is never sent and the Dart future hangs forever.
+        try {
+            val texId = message.textureId?.toInt()
+                ?: return callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: textureId")))
+            val surfaceProducer = surfaceProducers[texId]
+                ?: return callback(Result.failure(FlutterError(RENDER_ERROR, "No texture of texId=$texId")))
+
+            //Optional on the wire, and iOS simply skips the resize when they are absent -- so must we, rather than
+            //throwing on a call the schema permits.
+            val texWidth = message.textureWidth?.toInt() ?: 0
+            val texHeight = message.textureHeight?.toInt() ?: 0
+            if (texWidth != 0 && texHeight != 0) {
+                surfaceProducer.setSize(texWidth, texHeight)
+            }
+            documentStatesPerSurface.put(texId, message)
+            onDocumentOrSurfaceChanged(surfaceProducer.surface, message, callback)
+        } catch (e: RepositoryItemNotFoundException) {
+            callback(Result.failure(FlutterError(RENDER_ERROR, "Document not exist in documents repository")))
+        } catch (e: Exception) {
+            callback(Result.failure(FlutterError(RENDER_ERROR, "updateTexture failed", e.toString())))
         }
-        documentStatesPerSurface.put(texId, message)
-        onDocumentOrSurfaceChanged(surfaceProducer.surface, message, callback)
     }
 
     private fun onDocumentOrSurfaceChanged(
@@ -335,39 +394,52 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         document.withPage(pageNumber) { page ->
             val fullWidth = message.fullWidth ?: page.width.toDouble()
             val fullHeight = message.fullHeight ?: page.height.toDouble()
-            val destX = message.destinationX!!.toInt()
-            val destY = message.destinationY!!.toInt()
-            val width = message.width!!.toInt()
-            val height = message.height!!.toInt()
-            val srcX = message.sourceX!!.toInt()
-            val srcY = message.sourceY!!.toInt()
+            //Defaulted, not force-unwrapped: the schema declares all of these optional and iOS defaults them, so a
+            //call that succeeds there must not throw here.
+            val destX = message.destinationX?.toInt() ?: 0
+            val destY = message.destinationY?.toInt() ?: 0
+            val width = message.width?.toInt() ?: 0
+            val height = message.height?.toInt() ?: 0
+            val srcX = message.sourceX?.toInt() ?: 0
+            val srcY = message.sourceY?.toInt() ?: 0
             val backgroundColor = message.backgroundColor
+            val allowAntiAliasing = message.allowAntiAliasing ?: true
 
             if (width <= 0 || height <= 0) {
-                callback?.invoke(Result.failure(FlutterError(CHANNEL, "updateTexture width/height == 0")))
+                //`return@withPage`, not a bare call: without it execution fell through into `createBitmap(0, 0)`,
+                //which throws, and the catch below invoked the callback a *second* time -- which the engine rejects.
+                callback?.invoke(Result.failure(FlutterError(RENDER_ERROR, "updateTexture width/height == 0")))
+                return@withPage
             }
 
             val mat = Matrix()
             mat.setValues(floatArrayOf((fullWidth / page.width).toFloat(), 0f, -srcX.toFloat(), 0f, (fullHeight / page.height).toFloat(), -srcY.toFloat(), 0f, 0f, 1f))
 
+            var bmp: Bitmap? = null
             try {
-                val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 if (backgroundColor != null) {
-                    bmp.eraseColor(Color.parseColor(backgroundColor))
+                    bmp.eraseColor(parseColorOrTransparent(backgroundColor))
                 }
                 page.render(bmp, null, mat, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
-                surface.use {
-                    val canvas = it.lockCanvas(Rect(destX, destY, width, height))
-
-                    canvas.drawBitmap(bmp, destX.toFloat(), destY.toFloat(), null)
-                    bmp.recycle()
-
-                    it.unlockCanvasAndPost(canvas)
+                //The surface belongs to the SurfaceProducer, which reuses it for the texture's whole lifetime -- so
+                //it must NOT be released here. Doing so forced the engine to reallocate an ImageReader and its
+                //buffers on every single update, i.e. on every frame of a scroll or pinch.
+                val canvas = surface.lockCanvas(Rect(destX, destY, destX + width, destY + height))
+                try {
+                    //`Rect` is (left, top, right, bottom): passing (destX, destY, width, height) clipped the region
+                    //for any non-zero destination.
+                    val paint = if (allowAntiAliasing) antiAliasPaint else null
+                    canvas.drawBitmap(bmp, destX.toFloat(), destY.toFloat(), paint)
+                } finally {
+                    surface.unlockCanvasAndPost(canvas)
                 }
                 callback?.invoke(Result.success(Unit))
             } catch (e: Exception) {
-                callback?.invoke(Result.failure(FlutterError(CHANNEL, "updateTexture Unknown error")))
+                callback?.invoke(Result.failure(FlutterError(RENDER_ERROR, "updateTexture failed", e.toString())))
+            } finally {
+                bmp?.recycle()
             }
         }
     }
@@ -376,12 +448,21 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         message: ResizeTextureMessage,
         callback: (Result<Unit>) -> Unit
     ) {
-        val texId = message.textureId!!.toInt()
-        val width = message.width!!.toInt()
-        val height = message.height!!.toInt()
-        val tex = surfaceProducers[texId]
-        tex?.setSize(width, height)
-        callback(Result.success(Unit))
+        try {
+            val texId = message.textureId?.toInt()
+                ?: return callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: textureId")))
+            val width = message.width?.toInt()
+                ?: return callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: width")))
+            val height = message.height?.toInt()
+                ?: return callback(Result.failure(FlutterError(RENDER_ERROR, "Need call arguments: height")))
+            //An unknown id used to report success here while iOS reported failure for the same call.
+            val tex = surfaceProducers[texId]
+                ?: return callback(Result.failure(FlutterError(RENDER_ERROR, "No texture of texId=$texId")))
+            tex.setSize(width, height)
+            callback(Result.success(Unit))
+        } catch (e: Exception) {
+            callback(Result.failure(FlutterError(RENDER_ERROR, "resizeTexture failed", e.toString())))
+        }
     }
 
     override fun unregisterTexture(message: UnregisterTextureMessage) {
@@ -394,23 +475,32 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
 
     private fun openDataDocument(data: ByteArray, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {
         val tempDataFile = File(binding.applicationContext.cacheDir, "$randomFilename.pdf")
-        if (!tempDataFile.exists()) {
-            tempDataFile.writeBytes(data)
-        }
+        tempDataFile.writeBytes(data)
         Log.d(CHANNEL, "OpenDataDocument. Created file: " + tempDataFile.path)
-        return openFileDocument(tempDataFile, password)
+        return openTempFileDocument(tempDataFile, password)
     }
 
     private fun openAssetDocument(assetPath: String, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {
         val fullAssetPath = binding.flutterAssets.getAssetFilePathByName(assetPath)
         val tempAssetFile = File(binding.applicationContext.cacheDir, "$randomFilename.pdf")
-        if (!tempAssetFile.exists()) {
-            val inputStream = binding.applicationContext.assets.open(fullAssetPath)
-            inputStream.toFile(tempAssetFile)
-            inputStream.close()
-        }
+        binding.applicationContext.assets.open(fullAssetPath).use { it.toFile(tempAssetFile) }
         Log.d(CHANNEL, "OpenAssetDocument. Created file: " + tempAssetFile.path)
-        return openFileDocument(tempAssetFile, password)
+        return openTempFileDocument(tempAssetFile, password)
+    }
+
+    /**
+     * Open a document from a file this plugin just wrote to `cacheDir`, and unlink the file straight away.
+     *
+     * The descriptor keeps the inode alive for as long as the renderer needs it, so deleting the name now is safe --
+     * and it is the only thing that stops `cacheDir` growing by the full size of every document ever opened from
+     * data or assets. The name was a fresh UUID each time, so nothing ever reused or cleaned these up.
+     */
+    private fun openTempFileDocument(file: File, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {
+        try {
+            return openFileDocument(file, password)
+        } finally {
+            file.delete()
+        }
     }
 
     /**
@@ -466,14 +556,5 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
             fd.close()
             throw e
         }
-    }
-}
-
-fun <R> Surface.use(block: (Surface) -> R): R {
-    try {
-        return block(this)
-    }
-    finally {
-        this.release()
     }
 }

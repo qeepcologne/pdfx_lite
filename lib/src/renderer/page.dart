@@ -70,7 +70,7 @@ class PdfPage {
     int quality = 100,
     bool forPrint = false,
   }) =>
-      _lock.synchronized<PdfPageImage>(() async {
+      document._lock.synchronized<PdfPageImage>(() async {
         if (document.isClosed) {
           throw PdfDocumentAlreadyClosedException();
         }

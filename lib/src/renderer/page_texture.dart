@@ -51,6 +51,46 @@ class PdfPageTexture {
     String? backgroundColor,
     bool allowAntiAliasing = true,
   }) async {
+    //Under the document's lock, like `render`: this is the hottest native call in the plugin and it reaches the same
+    //native document, so without it a `close()` can land between the check and the call.
+    if (page.document.isClosed) {
+      return false;
+    }
+    return page.document._lock.synchronized<bool>(() async {
+      if (page.document.isClosed) {
+        return false;
+      }
+      return _updateRect(
+        destinationX: destinationX,
+        destinationY: destinationY,
+        width: width,
+        height: height,
+        sourceX: sourceX,
+        sourceY: sourceY,
+        textureWidth: textureWidth,
+        textureHeight: textureHeight,
+        fullWidth: fullWidth,
+        fullHeight: fullHeight,
+        backgroundColor: backgroundColor,
+        allowAntiAliasing: allowAntiAliasing,
+      );
+    });
+  }
+
+  Future<bool> _updateRect({
+    required int destinationX,
+    required int destinationY,
+    required int? width,
+    required int? height,
+    required int sourceX,
+    required int sourceY,
+    required int? textureWidth,
+    required int? textureHeight,
+    required double? fullWidth,
+    required double? fullHeight,
+    required String? backgroundColor,
+    required bool allowAntiAliasing,
+  }) async {
     try {
       final params = UpdateTextureMessage()
         ..documentId = page.document.id

@@ -1,3 +1,88 @@
+## 3.8.0
+
+A review pass over `lib/`, `android/` and `ios/`. Everything below is a bug fix; the only API change is
+`PdfControllerPinch.dispose()` now existing.
+
+### iOS reported the wrong size for every rotated page
+
+`Document.render` transposes the bitmap for a page with `/Rotate 90|270`, then reported the *untransposed*
+dimensions — so a 1224x1584 image was labelled 1584x1224 and laid out at the wrong aspect ratio. It now reports what
+it actually produced. This is the render half of upstream
+[#554](https://github.com/ScerIO/packages.flutter/issues/554); the viewer's texture path still mixes unrotated
+`fullWidth` with a rotated page size, which needs a rotated-PDF fixture to fix properly.
+
+### Two ways to hang or crash the platform channel (Android)
+
+- `updateTexture` with a zero-size rect invoked its reply callback and then **fell through** into
+  `Bitmap.createBitmap(0, 0)`, whose exception invoked the callback a second time. The engine rejects the duplicate.
+- Pigeon generates no error handling around an `@async` host method, so anything thrown before `updateTexture`'s
+  inner `try` — an unknown texture id, a closed document, a null field — meant the reply was *never* sent and the
+  Dart future never completed. Both `updateTexture` and `resizeTexture` are now total.
+- `renderPage` caught `Exception`, which excludes `OutOfMemoryError` — the likeliest failure for a large render, and
+  another silent hang. It now catches `Throwable`, and replies on the platform thread on every path.
+
+### Android released a Surface it did not own
+
+`surface.use { }` — a local extension, since `Surface` is not `Closeable` — called `release()` on the
+`SurfaceProducer`'s surface after *every* texture update, forcing the engine to reallocate an `ImageReader` and its
+buffers on every frame of a scroll or pinch. The producer owns that surface for the texture's whole lifetime.
+
+### Documents are now serialized per document, not globally (and iOS is serialized at all)
+
+- Dart's `Lock` was process-global, so a render on one document blocked an unrelated render on another. It is now
+  per-`PdfDocument`, and `PdfPageTexture.updateRect` — the hottest call in the plugin — takes it too, which it never
+  did.
+- On iOS, `Repository`'s lock only ever guarded the *dictionary*. Two callers could hold the same `CGPDFDocument`,
+  and `renderPage` (render queue) genuinely raced `updateTexture`/`getPage` (platform thread) on its shared page
+  cache. `Document.withPage` now serializes every access, mirroring Android.
+- Android's `Repository` used a plain `HashMap` across those same two threads; it is a `ConcurrentHashMap` now.
+
+### Platform divergences
+
+| | before | now |
+|---|---|---|
+| generic error code | `"pdf_renderer"` (Android) vs `"RENDER_ERROR"` (iOS) | `"RENDER_ERROR"` on both |
+| `allowAntiAliasing` | honoured on iOS, ignored on Android | honoured on both |
+| `resizeTexture`, unknown id | success on Android, failure on iOS | failure on both |
+| `closeDocument`, stale id | throws on Android, no-op on iOS | no-op on both |
+| optional `textureWidth`/`destinationX`/`sourceX`/… | force-unwrapped on Android, defaulted on iOS | defaulted on both |
+| `format`/`backgroundColor`/`quality` absent | defaulted on Android, whole call failed on iOS | defaulted on both |
+| malformed `backgroundColor` | throws on Android, falls back on iOS | falls back on both |
+
+`Rect(destX, destY, width, height)` on Android is `(left, top, right, bottom)`, so a non-zero destination clipped the
+drawn region; it is now `(destX, destY, destX + width, destY + height)`.
+
+### Leaks and lifecycle
+
+- **Reloading a document leaked every texture.** `loadDocument` announced `loading` before releasing, and the view's
+  listener clears `_pages` synchronously — so `_releasePages()` found an empty list and nothing was unregistered.
+- **Reusing one controller across two `PdfViewPinch`es showed a blank view forever**, because `_pages` lives on the
+  State and was only ever filled by the initial load. Re-attach now rebuilds it.
+- `PdfControllerPinch` never removed its page-change listener (a closure, so it *couldn't*), gained a second copy per
+  attach, and threw against the detached state. It is a field now, removed on detach, and `dispose()` exists.
+- `_PdfPageState.dispose()` was never called by anything, leaking two `ValueNotifier`s per page.
+- Post-dispose async work — `setState`, texture creation, a resurrected timer calling `View.of` on a dead element —
+  is guarded.
+- Two texture races: `preview` could be nulled across an `await` and then force-unwrapped, and `realSize ??= await
+  create()` let two passes both create a texture, orphaning one.
+- Neither platform released anything on engine detach: Android's `clear()` dropped documents without closing their
+  `PdfRenderer`/fd and left `SurfaceProducer`s registered; iOS had no detach hook at all.
+- Android wrote every data/asset document into `cacheDir` under a fresh UUID and never deleted it. The file is now
+  unlinked as soon as the descriptor is open.
+- Bitmaps are recycled on every path, including exceptions.
+
+### Correctness
+
+- `PdfPageImage.==` compared only byte *length* while `hashCode` mixed in `pageNumber`, so equal objects could hash
+  differently — which breaks `Set` and `Map`. Both now use the same fields.
+- iOS force-unwrapped `makeImage()` and `cropping(to:)`, either of which returns nil in reachable cases (an
+  out-of-bounds `cropRect` was a guaranteed crash). Both are errors now.
+- `updateTex` published the pixel buffer and signalled the engine *before* unlocking it, and treated a nil
+  `CGContext` as success, handing back a blank texture. It also never checked that the destination rect fit inside
+  the buffer.
+- A non-`Exception` failure during document load was flattened to `Exception('Unknown error')`, discarding the only
+  diagnostic; it is wrapped in `PdfLoadingFailure` with its stack.
+
 ## 3.7.0
 
 ### `render()` returns the bytes directly — no temp file, no `dart:io`

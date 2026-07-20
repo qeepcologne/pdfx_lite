@@ -86,6 +86,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
   late AnimationController _animController;
   Animation<Matrix4>? _animGoTo;
 
+  bool _isDisposed = false;
   bool _firstControllerAttach = true;
   bool _forceUpdatePagePreviews = true;
 
@@ -101,27 +102,33 @@ class _PdfViewPinchState extends State<PdfViewPinch>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    widget.controller.loadingState.addListener(() {
-      switch (widget.controller.loadingState.value) {
-        case PdfLoadingState.loading:
-          _pages.clear();
-          break;
-        case PdfLoadingState.success:
-          widget.onDocumentLoaded?.call(widget.controller._document!);
-          break;
-        case PdfLoadingState.error:
-          widget.onDocumentError?.call(_loadingError!);
-          break;
-      }
+    //Held in a field so `dispose` can remove it — as an inline closure it stayed subscribed for the life of the
+    //controller, so a later `loadDocument` reached every view ever mounted and fired their callbacks.
+    widget.controller.loadingState.addListener(_onLoadingStateChanged);
+  }
 
-      if (mounted) {
-        setState(() {});
-      }
-    });
+  void _onLoadingStateChanged() {
+    switch (widget.controller.loadingState.value) {
+      case PdfLoadingState.loading:
+        _pages.clear();
+        break;
+      case PdfLoadingState.success:
+        widget.onDocumentLoaded?.call(widget.controller._document!);
+        break;
+      case PdfLoadingState.error:
+        widget.onDocumentError?.call(_loadingError!);
+        break;
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _controller.loadingState.removeListener(_onLoadingStateChanged);
     _controller._detach();
     _cancelLastRealSizeUpdate();
     _releasePages();
@@ -144,7 +151,9 @@ class _PdfViewPinchState extends State<PdfViewPinch>
 
   void _handlePendedPageDisposes() {
     for (final p in _pendedPageDisposes) {
-      p.releaseTextures();
+      //`dispose`, not `releaseTextures`: this is the end of the page's life, so its notifiers go too. Nothing called
+      //`_PdfPageState.dispose` at all before, leaving two `ValueNotifier`s per page undisposed.
+      p.dispose();
     }
     _pendedPageDisposes.clear();
   }
@@ -201,6 +210,9 @@ class _PdfViewPinchState extends State<PdfViewPinch>
       _firstControllerAttach = false;
 
       Future.delayed(Duration.zero, () {
+        if (_isDisposed) {
+          return;
+        }
         // NOTE: controller should be associated
         // after first layout calculation finished.
         _controller
@@ -333,7 +345,13 @@ class _PdfViewPinchState extends State<PdfViewPinch>
   }
 
   void _needReLayout() {
-    Future.delayed(Duration.zero, () => setState(() {}));
+    Future.delayed(Duration.zero, () {
+      //These fire a frame later, by which point the view may be gone: `dispose` cannot cancel a `Future.delayed`.
+      if (_isDisposed || !mounted) {
+        return;
+      }
+      setState(() {});
+    });
   }
 
   void _needPagePreviewGeneration() {
@@ -341,7 +359,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
   }
 
   Future<void> _updatePageState() async {
-    if (_pages.isEmpty) {
+    if (_isDisposed || _pages.isEmpty) {
       return;
     }
     _forceUpdatePagePreviews = false;
@@ -377,13 +395,20 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         }
       }
       if (page.status == _PdfPageLoadingStatus.initialized) {
+        final preview = await page.pdfPage.createTexture();
+        if (_isDisposed || page.status == _PdfPageLoadingStatus.disposed) {
+          //Released while the texture was being created: nothing will ever dispose it via the page, so do it here.
+          await preview.dispose();
+          return;
+        }
         page
           ..status = _PdfPageLoadingStatus.pageLoading
-          ..preview = await page.pdfPage.createTexture();
+          ..preview = preview;
         final w = page.pdfPage.width; // * 2;
         final h = page.pdfPage.height; // * 2
 
-        await page.preview!.updateRect(
+        //A local, not `page.preview!`: `releaseTextures()` can null the field across either await below.
+        await preview.updateRect(
           width: w.toInt(),
           height: h.toInt(),
           textureWidth: w.toInt(),
@@ -404,7 +429,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
   }
 
   Future<void> _updateRealSizeOverlay() async {
-    if (_pages.isEmpty) {
+    if (_isDisposed || _pages.isEmpty) {
       return;
     }
 
@@ -445,17 +470,32 @@ class _PdfViewPinchState extends State<PdfViewPinch>
       } else {
         // render real-size overlay
         final offset = part.topLeft - pageRectZoomed.topLeft;
-        page
-          ..realSizeOverlayRect = Rect.fromLTWH(
-            offset.dx / r,
-            offset.dy / r,
-            part.width / r,
-            part.height / r,
-          )
-          ..realSize ??= await page.pdfPage.createTexture();
+        page.realSizeOverlayRect = Rect.fromLTWH(
+          offset.dx / r,
+          offset.dy / r,
+          part.width / r,
+          part.height / r,
+        );
+        var realSize = page.realSize;
+        if (realSize == null) {
+          //`realSize ??= await create()` re-read the field only *after* awaiting, so two concurrent passes both saw
+          //null, both created a texture, and the second assignment orphaned the first.
+          final created = await page.pdfPage.createTexture();
+          if (page.realSize != null) {
+            await created.dispose();
+            realSize = page.realSize;
+          } else if (_isDisposed ||
+              page.status == _PdfPageLoadingStatus.disposed) {
+            await created.dispose();
+            return;
+          } else {
+            page.realSize = created;
+            realSize = created;
+          }
+        }
         final w = (part.width * dpr).toInt();
         final h = (part.height * dpr).toInt();
-        await page.realSize!.updateRect(
+        await realSize!.updateRect(
           width: w,
           height: h,
           sourceX: (offset.dx * dpr).toInt(),
@@ -483,6 +523,11 @@ class _PdfViewPinchState extends State<PdfViewPinch>
       const Duration(milliseconds: 100);
 
   void _needRealSizeOverlayUpdate() {
+    if (_isDisposed) {
+      //Otherwise the tail of a post-dispose `_updatePageState` schedules a fresh timer that `dispose` already
+      //cancelled, and 100ms later it runs `View.of(context)` on a dead element.
+      return;
+    }
     _cancelLastRealSizeUpdate();
     // Using Timer as cancellable version of [Future.delayed]
     _realSizeUpdateTimer =

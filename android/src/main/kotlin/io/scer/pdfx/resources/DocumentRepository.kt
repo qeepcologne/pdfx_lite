@@ -22,4 +22,20 @@ class DocumentRepository : Repository<Document>() {
         get(id).close()
         super.close(id)
     }
+
+    /**
+     * Close every open document, then empty the map.
+     *
+     * The inherited `clear()` only dropped the references, leaking each document's `PdfRenderer` and its file
+     * descriptor on every engine detach.
+     */
+    override fun clear() {
+        for (document in drain()) {
+            try {
+                document.close()
+            } catch (e: Exception) {
+                //Best effort: one document failing to close must not strand the rest.
+            }
+        }
+    }
 }

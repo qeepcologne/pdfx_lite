@@ -37,6 +37,13 @@ class Repository<T>: @unchecked Sendable {
         defer { lock.unlock() }
         items.removeValue(forKey: id)
     }
+
+    /// Drop everything. Used on engine detach, where no per-item `close` from Dart is ever going to arrive.
+    func clear() {
+        lock.lock()
+        defer { lock.unlock() }
+        items.removeAll()
+    }
 }
 
 //Sendable is inherited from Repository; restating it here would be a redundant conformance.

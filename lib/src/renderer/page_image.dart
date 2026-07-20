@@ -97,13 +97,22 @@ class PdfPageImage {
     );
   }
 
+  //`==` compared only the byte *length*, so two different pages that happened to encode to the same size were equal —
+  //while `hashCode` mixed in `pageNumber`, so they hashed differently. Equal objects with unequal hash codes break
+  //`Set`/`Map`. Both now agree on the same fields; the bytes themselves are deliberately not compared element-wise,
+  //since these are megabyte-scale buffers.
   @override
   bool operator ==(Object other) =>
       other is PdfPageImage &&
+      other.pageNumber == pageNumber &&
+      other.width == width &&
+      other.height == height &&
+      other.format == format &&
       other.bytes.lengthInBytes == bytes.lengthInBytes;
 
   @override
-  int get hashCode => Object.hash(pageNumber, bytes.lengthInBytes);
+  int get hashCode =>
+      Object.hash(pageNumber, width, height, format, bytes.lengthInBytes);
 
   @override
   String toString() => '$runtimeType{'
