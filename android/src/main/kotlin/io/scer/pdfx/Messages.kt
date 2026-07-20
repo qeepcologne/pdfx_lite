@@ -471,6 +471,9 @@ class Messages(private val binding : FlutterPlugin.FlutterPluginBinding,
         surfaceProducer?.setCallback(null)
         surfaceProducer?.release()
         surfaceProducers.remove(id)
+        //Also drop the retained UpdateTextureMessage: the registry reuses texture ids, so a later texture with the
+        //same id would have had `onSurfaceAvailable` redraw the *previous* texture's page.
+        documentStatesPerSurface.remove(id)
     }
 
     private fun openDataDocument(data: ByteArray, password: String?): Pair<ParcelFileDescriptor, PdfRenderer> {

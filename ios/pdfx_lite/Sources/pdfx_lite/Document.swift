@@ -49,97 +49,111 @@ final class Page: @unchecked Sendable {
         self.boxRect = renderer.getBoxRect(.mediaBox)
     }
 
-    var width: Double {
-        get {
-            return Double(boxRect.width)
-        }
-    }
-
-    var height: Double {
-        get {
-            return Double(boxRect.height)
-        }
-    }
-
     var rotationAngle: Int32 {
-        get {
-            return renderer.rotationAngle
-        }
+        //Normalised: /Rotate is permitted to be negative or beyond 360.
+        let raw = renderer.rotationAngle % 360
+        return raw < 0 ? raw + 360 : raw
     }
 
-    var isLandscape: Bool {
-        get {
-            return Bool(rotationAngle == 90 || rotationAngle == 270)
-        }
+    /// The size the page is *displayed* at, i.e. with `/Rotate` applied.
+    ///
+    /// Reporting the raw mediaBox instead was the root of upstream #554: the texture path already worked in rotated
+    /// space (`getRotatedSize`), so a rotated page was laid out with one aspect ratio and drawn with another.
+    /// Android reports the rotated size too -- measured, not assumed: a 300x400 page with `/Rotate 90` reports
+    /// 400x300 from `PdfRenderer.Page` and renders to exactly that.
+    var displaySize: CGSize {
+        (rotationAngle == 90 || rotationAngle == 270)
+            ? CGSize(width: boxRect.height, height: boxRect.width)
+            : boxRect.size
     }
 
+    var width: Double { Double(displaySize.width) }
+
+    var height: Double { Double(displaySize.height) }
+
+    /// Render the page into a `width` x `height` bitmap and encode it.
+    ///
+    /// The page is stretched to fill exactly, never letterboxed, and the returned image is exactly the requested
+    /// size -- which is what Android does (measured: a 300x400 page rendered at 200x100 comes back 200x100 there).
+    ///
+    /// The transform is built explicitly rather than via `getDrawingTransform`, which preserves aspect ratio and
+    /// refuses to scale up. Working around that needed a documented hack that multiplied its scale on top of an
+    /// already-scaled transform whenever the page did not fit -- double-scaling the page anisotropically -- and its
+    /// guard tested only the width, so a bitmap narrower but much taller than the page skipped the correction
+    /// entirely and drew the page small and centred in mostly-empty space.
     func render(width: Int, height: Int, crop: CGRect?, compressFormat: CompressFormat, backgroundColor: String = "#ffffff", quality: Int) -> Page.DataResult? {
-        let box = renderer.getBoxRect(.mediaBox)
-        let bitmapSize = isLandscape ? CGSize(width: height, height: width) : CGSize(width: width, height: height)
-        let stride = Int(bitmapSize.width * 4)
-        var tempData = Data(repeating: 0, count: stride * Int(bitmapSize.height))
+        let display = displaySize
+        guard width > 0, height > 0, display.width > 0, display.height > 0 else { return nil }
+
+        let bitmapSize = CGSize(width: width, height: height)
+        let stride = width * 4
+        var tempData = Data(repeating: 0, count: stride * height)
         var data: Data?
-        var success = false
-        var transform = renderer.getDrawingTransform(.mediaBox, rect: CGRect(origin: CGPoint.zero, size: bitmapSize), rotate: 0, preserveAspectRatio: true)
         let compressionQuality = CGFloat(quality) / 100
+
         tempData.withUnsafeMutableBytes { (ptr) in
-            let rawPtr = ptr.baseAddress
+            guard let rawPtr = ptr.baseAddress else { return }
             let rgb = CGColorSpaceCreateDeviceRGB()
-            let context = CGContext(data: rawPtr, width: Int(bitmapSize.width), height: Int(bitmapSize.height), bitsPerComponent: 8, bytesPerRow: stride, space: rgb, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            if context != nil {
-                // Credit: https://stackoverflow.com/a/35985236
-                // We change the context scale to fill completely the destination size (scale-down is handled by getDrawingTransform)
-                if box.width < bitmapSize.width {
-                    let sx = CGFloat(width) / box.width
-                    let sy = CGFloat(height) / box.height
-                    transform = transform.scaledBy(x: sx, y: sy)
+            guard let context = CGContext(
+                data: rawPtr,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: stride,
+                space: rgb,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return }
 
-                    transform.tx = -(box.origin.x * transform.a + box.origin.y * transform.b)
-                    transform.ty = -(box.origin.x * transform.c + box.origin.y * transform.d)
+            //Fill the whole bitmap, under the identity transform. The old code filled only the mapped mediaBox, so
+            //in every letterboxed case the margins kept the zero fill -- transparent for PNG, black for JPEG --
+            //rather than the requested background.
+            context.setFillColor(UIColor(hexString: backgroundColor).cgColor)
+            context.fill(CGRect(origin: .zero, size: bitmapSize))
 
-                    // Rotation handling
-                    if rotationAngle == 180 || rotationAngle == 270 {
-                        transform.tx += bitmapSize.width
-                    }
-                    if rotationAngle == 90 || rotationAngle == 180 {
-                        transform.ty += bitmapSize.height
-                    }
-                }
-                context!.concatenate(transform)
-                context!.setFillColor(UIColor(hexString: backgroundColor).cgColor)
-                context!.fill(box)
-                context!.drawPDFPage(renderer)
-                //`makeImage` can fail; force-unwrapping it crashed the app where every other failure in this function
-                //returns nil and surfaces as a clean error.
-                guard let rendered = context!.makeImage() else { return }
-                var image = UIImage(cgImage: rendered)
+            //Applied outermost: page space -> normalised origin -> rotated into display space -> scaled to fill.
+            context.scaleBy(x: bitmapSize.width / display.width, y: bitmapSize.height / display.height)
+            switch rotationAngle {
+            case 90:
+                context.translateBy(x: 0, y: display.height)
+                context.rotate(by: -.pi / 2)
+            case 180:
+                context.translateBy(x: display.width, y: display.height)
+                context.rotate(by: .pi)
+            case 270:
+                context.translateBy(x: display.width, y: 0)
+                context.rotate(by: .pi / 2)
+            default:
+                break
+            }
+            context.translateBy(x: -boxRect.origin.x, y: -boxRect.origin.y)
+            context.drawPDFPage(renderer)
 
-                if let crop {
-                    //`cropping(to:)` returns nil when the rect does not intersect the image -- reachable from the
-                    //public `render(cropRect:)` with an out-of-bounds rect, and previously a guaranteed crash.
-                    guard let cutImageRef = image.cgImage?.cropping(to: crop) else { return }
-                    image = UIImage(cgImage: cutImageRef)
-                }
+            //`makeImage` can fail; force-unwrapping it crashed the app where every other failure here returns nil and
+            //surfaces as a clean error.
+            guard let rendered = context.makeImage() else { return }
+            var image = UIImage(cgImage: rendered)
 
-                switch(compressFormat) {
-                    case CompressFormat.JPEG:
-                        data = image.jpegData(compressionQuality: compressionQuality) as Data?
-                        break;
-                    case CompressFormat.PNG:
-                        data = image.pngData() as Data?
-                        break;
-                }
+            if let crop {
+                //`cropping(to:)` returns nil when the rect does not intersect the image -- reachable from the public
+                //`render(cropRect:)` with an out-of-bounds rect, and previously a guaranteed crash. The rect is in
+                //top-left image coordinates, the same as Android's `Bitmap.createBitmap`, and the bitmap is no longer
+                //transposed for rotated pages -- so the two platforms now crop the same region.
+                guard let cutImageRef = image.cgImage?.cropping(to: crop) else { return }
+                image = UIImage(cgImage: cutImageRef)
+            }
 
-                success = true
+            switch compressFormat {
+            case .JPEG:
+                data = image.jpegData(compressionQuality: compressionQuality)
+            case .PNG:
+                data = image.pngData()
             }
         }
-        guard success, let bytes = data else { return nil }
-        //Report what was actually produced, not what was asked for. For a page with /Rotate 90 or 270 the bitmap is
-        //transposed above (`bitmapSize`), so returning the requested `width`/`height` labelled a height x width image
-        //as width x height -- and the caller laid it out at the wrong aspect ratio. That is upstream #554.
+
+        guard let bytes = data else { return nil }
         return Page.DataResult(
-            width: (crop != nil) ? Int(crop!.width) : Int(bitmapSize.width),
-            height: (crop != nil) ? Int(crop!.height) : Int(bitmapSize.height),
+            width: (crop != nil) ? Int(crop!.width) : width,
+            height: (crop != nil) ? Int(crop!.height) : height,
             bytes: bytes
         )
     }

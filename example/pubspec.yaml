@@ -24,5 +24,6 @@ flutter:
     enable-swift-package-manager: true
   assets:
     - assets/hello.pdf
+    - assets/rotated90.pdf
     - assets/locked.pdf
     - assets/perms_only.pdf

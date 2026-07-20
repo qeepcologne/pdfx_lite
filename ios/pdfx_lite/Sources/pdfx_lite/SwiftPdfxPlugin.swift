@@ -353,6 +353,12 @@ enum PdfRenderError : Error {
 final class PdfPageTexture : NSObject, @unchecked Sendable {
   private var pixBuf : CVPixelBuffer?
   private let lock = NSLock()
+  /// Reused across updates of the same size. `updateTex` runs once per frame while pinch-zooming, and allocating a
+  /// fresh several-megabyte buffer each time was pure churn; the pool hands the same memory back once the engine has
+  /// released its reference.
+  private var bufferPool: CVPixelBufferPool?
+  private var poolWidth: Int = 0
+  private var poolHeight: Int = 0
   weak var registrar: FlutterPluginRegistrar?
   var texId: Int64 = 0
   var texWidth: Int = 0
@@ -360,6 +366,37 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
 
   init(registrar: FlutterPluginRegistrar?) {
     self.registrar = registrar
+  }
+
+  /// A buffer of the current texture size, from the pool, recreating the pool when the size changes.
+  private func obtainPixelBuffer() throws -> CVPixelBuffer {
+    guard texWidth > 0, texHeight > 0 else {
+      throw PdfRenderError.operationFailed("texture size not set (\(texWidth)x\(texHeight))")
+    }
+    if bufferPool == nil || poolWidth != texWidth || poolHeight != texHeight {
+      let attrs = [
+        kCVPixelBufferCGImageCompatibilityKey as String: true,
+        kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+        kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+        kCVPixelBufferWidthKey as String: texWidth,
+        kCVPixelBufferHeightKey as String: texHeight,
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+      ] as [String: Any]
+      var pool: CVPixelBufferPool?
+      let poolRet = CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attrs as CFDictionary, &pool)
+      guard let pool else {
+        throw PdfRenderError.operationFailed("CVPixelBufferPoolCreate failed: \(poolRet)")
+      }
+      bufferPool = pool
+      poolWidth = texWidth
+      poolHeight = texHeight
+    }
+    var buffer: CVPixelBuffer?
+    let ret = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, bufferPool!, &buffer)
+    guard let buffer else {
+      throw PdfRenderError.operationFailed("CVPixelBufferPoolCreatePixelBuffer failed: \(ret)")
+    }
+    return buffer
   }
 
   func resize(width: Int, height: Int) {
@@ -390,16 +427,7 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
     let sx = CGFloat(fw) / rotatedSize.width
     let sy = CGFloat(fh) / rotatedSize.height
 
-    var pixBuf: CVPixelBuffer?
-    let options = [
-      kCVPixelBufferCGImageCompatibilityKey as String: true,
-      kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
-      kCVPixelBufferIOSurfacePropertiesKey as String: [:]
-      ] as [String : Any]
-    let cvRet = CVPixelBufferCreate(kCFAllocatorDefault, texWidth, texHeight, kCVPixelFormatType_32BGRA, options as CFDictionary?, &pixBuf)
-    if pixBuf == nil {
-      throw PdfRenderError.operationFailed("CVPixelBufferCreate failed: result code=\(cvRet)")
-    }
+    let pixBuf = try obtainPixelBuffer()
 
     //The destination sub-rect must lie inside the buffer: `destX`/`destY`/`width`/`height` come straight from the
     //public `updateRect`, and CoreGraphics would otherwise write past the end of the pixel buffer.
@@ -410,10 +438,10 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
     }
 
     let lockFlags = CVPixelBufferLockFlags(rawValue: 0)
-    let _ = CVPixelBufferLockBaseAddress(pixBuf!, lockFlags)
+    let _ = CVPixelBufferLockBaseAddress(pixBuf, lockFlags)
 
-    let bufferAddress = CVPixelBufferGetBaseAddress(pixBuf!)
-    let bytesPerRow = CVPixelBufferGetBytesPerRow(pixBuf!)
+    let bufferAddress = CVPixelBufferGetBaseAddress(pixBuf)
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(pixBuf)
     let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
     let context = CGContext(data: bufferAddress?.advanced(by: destX * 4 + destY * bytesPerRow),
                             width: width,
@@ -427,7 +455,7 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
     //A nil context used to be optional-chained into a series of no-ops and then reported as success, handing back a
     //blank texture with no error at all.
     guard let context else {
-      CVPixelBufferUnlockBaseAddress(pixBuf!, lockFlags)
+      CVPixelBufferUnlockBaseAddress(pixBuf, lockFlags)
       throw PdfRenderError.operationFailed("CGContext creation failed for \(width)x\(height)")
     }
 
@@ -446,7 +474,7 @@ final class PdfPageTexture : NSObject, @unchecked Sendable {
 
     //Unlock BEFORE publishing: the engine's raster thread calls `copyPixelBuffer` as soon as it sees the buffer, and
     //it must not read one still locked for CPU access. The old `defer` released it only after both lines below.
-    CVPixelBufferUnlockBaseAddress(pixBuf!, lockFlags)
+    CVPixelBufferUnlockBaseAddress(pixBuf, lockFlags)
 
     lock.lock()
     self.pixBuf = pixBuf

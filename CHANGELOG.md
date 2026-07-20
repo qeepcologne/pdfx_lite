@@ -71,6 +71,51 @@ drawn region; it is now `(destX, destY, destX + width, destY + height)`.
   unlinked as soon as the descriptor is open.
 - Bitmaps are recycled on every path, including exceptions.
 
+### Rotated and mixed-size pages
+
+Measured on an API 34 device: Android's `getPage` reports the **displayed** size, with `/Rotate` applied — a 300x400
+page rotated 90 degrees reports 400x300 — and `render(w, h)` returns exactly `w` x `h`, stretched to fill. iOS
+reported the raw mediaBox and letterboxed. It now matches Android on both counts, which is the rest of upstream
+[#554](https://github.com/ScerIO/packages.flutter/issues/554): the texture path already worked in rotated space, so a
+rotated page was laid out with one aspect ratio and drawn with another.
+
+`Document.render` on iOS builds its transform explicitly instead of going through `getDrawingTransform`, which
+preserves aspect ratio and refuses to scale up. The documented workaround for that multiplied its own scale on top of
+an already-scaled transform whenever the page did not fit — drawing the page undersized and anisotropically
+distorted — and its guard tested only the width, so a bitmap narrower but much taller than the page skipped the
+correction entirely. Crop rects now also address the same region on both platforms, and the background colour fills
+the whole bitmap rather than just the mapped mediaBox (letterbox margins used to stay transparent, or black in JPEG).
+
+**A document whose pages differ in size laid out wrong.** Every page starts with the first page's size as a
+placeholder; when a page's real size arrived, the relayout ran but scheduled no repaint — `_determinePagesToShow`
+only repaints when a page's *visibility* changes. One landscape or rotated page among portrait ones kept the
+placeholder layout until some unrelated rebuild came along.
+
+### Performance
+
+- **The viewer rebuilt every frame, at rest.** `iterateLaidOutPages` wrote `isVisibleInsideView` during build using a
+  rect inflated by `padding`, while `_determinePagesToShow` used an uninflated one. Any page in that band flipped
+  between the two forever: build says visible, determine says not, which requests a relayout, which rebuilds. Build
+  now reads visibility instead of deciding it.
+- Page rects are recomputed only when the view size or a page size actually changes. They are a function of neither
+  the scroll offset nor the zoom, but `_reLayout` runs inside the `LayoutBuilder` — so three O(pages) passes ran on
+  every frame of every scroll.
+- Preview textures purge at 6 viewport-lengths rather than 33, and the real-size overlay at 2 rather than 8. A
+  full-resolution texture per page was previously retained for roughly 33 screens' worth of scrolling in each
+  direction.
+- iOS reuses pixel buffers from a `CVPixelBufferPool` instead of allocating a fresh multi-megabyte buffer per frame.
+
+### Other
+
+- `loadDocument(initialPage: n)` now actually scrolls to page n. It computed the matrix, used it for visibility
+  maths, and threw it away — so `onPageChanged` reported page n while the view stayed on page 1.
+- A failed `updateRect` no longer marks the page loaded; the page used to stay blank forever, since nothing retries a
+  loaded page.
+- `getPageRect` returns null instead of throwing `RangeError` when the page list is empty or short, which it is
+  during a load.
+- `unregisterTexture` drops the retained `UpdateTextureMessage`; texture ids are reused, so a later texture with the
+  same id could have redrawn the previous texture's page.
+
 ### Correctness
 
 - `PdfPageImage.==` compared only byte *length* while `hashCode` mixed in `pageNumber`, so equal objects could hash

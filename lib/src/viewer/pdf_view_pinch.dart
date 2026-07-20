@@ -87,6 +87,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
   Animation<Matrix4>? _animGoTo;
 
   bool _isDisposed = false;
+  bool _layoutDirty = true;
   bool _firstControllerAttach = true;
   bool _forceUpdatePagePreviews = true;
 
@@ -111,6 +112,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
     switch (widget.controller.loadingState.value) {
       case PdfLoadingState.loading:
         _pages.clear();
+        _layoutDirty = true;
         break;
       case PdfLoadingState.success:
         widget.onDocumentLoaded?.call(widget.controller._document!);
@@ -189,8 +191,13 @@ class _PdfViewPinchState extends State<PdfViewPinch>
     if (_pages.isEmpty) {
       return;
     }
-    // if (widget.params?.layoutPages == null) {
-    _reLayoutDefault(viewSize!);
+    //`_reLayout` runs from inside the `LayoutBuilder`, i.e. on every build -- including every scroll and zoom frame,
+    //since those rebuild through the controller. Page rects are a function of the view size and the page sizes only,
+    //so recomputing them per frame was three O(pages) passes of pure waste.
+    if (_layoutDirty || _lastViewSize != viewSize) {
+      _reLayoutDefault(viewSize!);
+      _layoutDirty = false;
+    }
     // } else {
     // final contentSize =
     //     Size(viewSize!.width - _padding * 2, viewSize.height - _padding * 2);
@@ -203,7 +210,6 @@ class _PdfViewPinchState extends State<PdfViewPinch>
     //   allRect = allRect.expandToInclude(rect.inflate(_padding));
     // }
     // _docSize = allRect.size;
-    // }
     _lastViewSize = viewSize;
 
     if (_firstControllerAttach) {
@@ -281,6 +287,12 @@ class _PdfViewPinchState extends State<PdfViewPinch>
     bool shouldNotifyPageChanged = false;
     if (pendingInitialPage != null) {
       m = _controller.calculatePageFitMatrix(pageNumber: pendingInitialPage);
+      if (m != null) {
+        //Actually go there. The matrix was computed and used only for the visibility maths below, so
+        //`loadDocument(initialPage: n)` reported page n through `onPageChanged`/`pageListenable` while the view
+        //stayed on page 1 -- the reported page and the visible page disagreed.
+        _controller.value = m;
+      }
       shouldNotifyPageChanged = true;
     }
     m ??= _controller.value;
@@ -390,7 +402,14 @@ class _PdfViewPinchState extends State<PdfViewPinch>
           ..pageSize = Size(page.pdfPage.width, page.pdfPage.height)
           ..status = _PdfPageLoadingStatus.initialized;
         if (prevPageSize != page.pageSize && mounted) {
+          //A page's real size replacing the first-page placeholder changes the layout of every page after it.
+          _layoutDirty = true;
           _reLayout(_lastViewSize);
+          //`_reLayout` only mutates the rects; called from here it is outside a build, and `_determinePagesToShow`
+          //schedules a repaint only when a page's *visibility* changed. With sizes corrected but nothing repainted,
+          //a document whose pages differ in size (one rotated or landscape page among portrait ones) kept the
+          //placeholder layout until some unrelated rebuild happened to come along.
+          _needReLayout();
           return;
         }
       }
@@ -408,7 +427,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         final h = page.pdfPage.height; // * 2
 
         //A local, not `page.preview!`: `releaseTextures()` can null the field across either await below.
-        await preview.updateRect(
+        final ok = await preview.updateRect(
           width: w.toInt(),
           height: h.toInt(),
           textureWidth: w.toInt(),
@@ -419,6 +438,14 @@ class _PdfViewPinchState extends State<PdfViewPinch>
           backgroundColor: '#ffffff',
         );
 
+        if (!ok) {
+          //Leaving it `pageLoaded` pinned a blank page forever: nothing retries a loaded page. Back to `initialized`
+          //so the next pass tries again.
+          page
+            ..releaseTextures()
+            ..status = _PdfPageLoadingStatus.initialized;
+          continue;
+        }
         page
           ..status = _PdfPageLoadingStatus.pageLoaded
           ..updatePreview();
@@ -433,8 +460,10 @@ class _PdfViewPinchState extends State<PdfViewPinch>
       return;
     }
 
-    const fullPurgeDistThreshold = 33;
-    const partialRemovalDistThreshold = 8;
+    //In units of the viewport's longest side. 33 meant a full-resolution texture per page was retained for roughly
+    //33 screens' worth of scrolling in each direction before anything was freed.
+    const fullPurgeDistThreshold = 6;
+    const partialRemovalDistThreshold = 2;
 
     final dpr = View.of(context).devicePixelRatio;
     final m = _controller.value;
@@ -632,9 +661,12 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         }
         final pageRectZoomed = Rect.fromLTRB(page.rect!.left * r,
             page.rect!.top * r, page.rect!.right * r, page.rect!.bottom * r);
+        //A local, NOT `page.isVisibleInsideView`. This rect is inflated by `_padding` while
+        //`_determinePagesToShow` uses an uninflated one, so writing the field here meant any page sitting in that
+        //10px band flipped between the two forever: build set true, the next determine set false, which requested a
+        //relayout, which rebuilt... a permanent rebuild-per-frame even at rest. Build reads, it does not decide.
         final part = pageRectZoomed.intersect(exposed);
-        page.isVisibleInsideView = !part.isEmpty;
-        if (!page.isVisibleInsideView) {
+        if (part.isEmpty) {
           continue;
         }
 

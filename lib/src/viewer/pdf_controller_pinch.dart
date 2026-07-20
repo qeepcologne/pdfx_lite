@@ -62,7 +62,16 @@ class PdfControllerPinch extends TransformationController {
   int? get pagesCount => _document?.pagesCount;
 
   /// Get page location. If the page is out of view,
-  Rect? getPageRect(int pageNumber) => _state!._pages[pageNumber - 1].rect;
+  ///
+  /// Returns null rather than throwing when the page list is empty or shorter than `pageNumber` -- which it is
+  /// during a load, and which `animateToPage` could reach because its own guard checks `pagesCount` instead.
+  Rect? getPageRect(int pageNumber) {
+    final pages = _state?._pages;
+    if (pages == null || pageNumber < 1 || pageNumber > pages.length) {
+      return null;
+    }
+    return pages[pageNumber - 1].rect;
+  }
 
   /// Load document
   Future<void> loadDocument(
