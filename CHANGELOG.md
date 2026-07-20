@@ -1,15 +1,35 @@
 ## 3.8.0
 
-A review pass over `lib/`, `android/` and `ios/`. Everything below is a bug fix; the only API change is
-`PdfControllerPinch.dispose()` now existing.
+A review pass over `lib/`, `android/` and `ios/`. Everything below is a bug fix. The API additions are
+`PdfControllerPinch.dispose()` and `PdfLoadingFailure`; the one behavioural change a caller can observe is
+`PdfPage.width`/`.height` on iOS for rotated pages (see below).
 
-### iOS reported the wrong size for every rotated page
+### Rotated pages were sized wrong on iOS — upstream #554
 
-`Document.render` transposes the bitmap for a page with `/Rotate 90|270`, then reported the *untransposed*
-dimensions — so a 1224x1584 image was labelled 1584x1224 and laid out at the wrong aspect ratio. It now reports what
-it actually produced. This is the render half of upstream
-[#554](https://github.com/ScerIO/packages.flutter/issues/554); the viewer's texture path still mixes unrotated
-`fullWidth` with a rotated page size, which needs a rotated-PDF fixture to fix properly.
+Measured on an API 34 device rather than reasoned about: Android's `getPage` reports the **displayed** size, with
+`/Rotate` applied — a 300x400 page rotated 90 degrees reports 400x300 — and `render(w, h)` returns exactly `w` x `h`,
+stretched to fill. iOS reported the raw mediaBox and letterboxed, and `render` transposed its bitmap for a rotated
+page while reporting the untransposed dimensions, so the image was labelled with the wrong aspect ratio. Both halves
+now match Android.
+
+That mismatch is the whole of [#554](https://github.com/ScerIO/packages.flutter/issues/554): the texture path already
+worked in rotated space (`getRotatedSize`), so a rotated page was laid out with one aspect ratio and drawn with
+another.
+
+**`PdfPage.width`/`.height` therefore change value on iOS for rotated pages** — they are the displayed size now, as
+they always were on Android. Nothing changes for a page with no `/Rotate`.
+
+`Document.render` on iOS builds its transform explicitly instead of going through `getDrawingTransform`, which
+preserves aspect ratio and refuses to scale up. The documented workaround for that multiplied its own scale on top of
+an already-scaled transform whenever the page did not fit — drawing the page undersized and anisotropically
+distorted — and its guard tested only the width, so a bitmap narrower but much taller than the page skipped the
+correction entirely. Crop rects now also address the same region on both platforms, and the background colour fills
+the whole bitmap rather than just the mapped mediaBox (letterbox margins used to stay transparent, or black in JPEG).
+
+**A document whose pages differ in size laid out wrong.** Every page starts with the first page's size as a
+placeholder; when a page's real size arrived, the relayout ran but scheduled no repaint — `_determinePagesToShow`
+only repaints when a page's *visibility* changes. One landscape or rotated page among portrait ones kept the
+placeholder layout until some unrelated rebuild came along.
 
 ### Two ways to hang or crash the platform channel (Android)
 
@@ -70,26 +90,6 @@ drawn region; it is now `(destX, destY, destX + width, destY + height)`.
 - Android wrote every data/asset document into `cacheDir` under a fresh UUID and never deleted it. The file is now
   unlinked as soon as the descriptor is open.
 - Bitmaps are recycled on every path, including exceptions.
-
-### Rotated and mixed-size pages
-
-Measured on an API 34 device: Android's `getPage` reports the **displayed** size, with `/Rotate` applied — a 300x400
-page rotated 90 degrees reports 400x300 — and `render(w, h)` returns exactly `w` x `h`, stretched to fill. iOS
-reported the raw mediaBox and letterboxed. It now matches Android on both counts, which is the rest of upstream
-[#554](https://github.com/ScerIO/packages.flutter/issues/554): the texture path already worked in rotated space, so a
-rotated page was laid out with one aspect ratio and drawn with another.
-
-`Document.render` on iOS builds its transform explicitly instead of going through `getDrawingTransform`, which
-preserves aspect ratio and refuses to scale up. The documented workaround for that multiplied its own scale on top of
-an already-scaled transform whenever the page did not fit — drawing the page undersized and anisotropically
-distorted — and its guard tested only the width, so a bitmap narrower but much taller than the page skipped the
-correction entirely. Crop rects now also address the same region on both platforms, and the background colour fills
-the whole bitmap rather than just the mapped mediaBox (letterbox margins used to stay transparent, or black in JPEG).
-
-**A document whose pages differ in size laid out wrong.** Every page starts with the first page's size as a
-placeholder; when a page's real size arrived, the relayout ran but scheduled no repaint — `_determinePagesToShow`
-only repaints when a page's *visibility* changes. One landscape or rotated page among portrait ones kept the
-placeholder layout until some unrelated rebuild came along.
 
 ### Performance
 
