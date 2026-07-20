@@ -39,6 +39,9 @@ PdfViewPinch(controller: controller);
 5. **A `PdfPage` holds no native resource**, so it is addressed by number, not by a handle. Drop `page.close()` and
    `getPage(autoCloseAndroid:)`; `PdfPage.id`, `PdfPageImage.id` and `updateRect`'s `documentId` are gone. Only the
    document is closed.
+6. **Rotated pages:** on iOS, `PdfPage.width`/`.height` report the *displayed* size (`/Rotate` applied), as they
+   always did on Android. If you swapped them yourself to work around
+   [#554](https://github.com/ScerIO/packages.flutter/issues/554), remove that.
 
 ## Encrypted PDFs
 
@@ -84,5 +87,5 @@ Otherwise catch:
 | Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta` (required by Pigeon's generated bridge import), `synchronized`, `vector_math` remain |
 | Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |
 
-Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race, and
-more. See the [CHANGELOG](CHANGELOG.md).
+Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race,
+rotated pages mis-sized on iOS, and more. See the [CHANGELOG](CHANGELOG.md).
