@@ -88,4 +88,5 @@ Otherwise catch:
 | Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race,
-rotated pages mis-sized on iOS, and more. See the [CHANGELOG](CHANGELOG.md).
+rotated pages mis-sized on iOS, a viewer that rebuilt every frame even at rest, and more. See the
+[CHANGELOG](CHANGELOG.md).
