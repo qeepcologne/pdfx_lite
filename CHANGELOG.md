@@ -1,61 +1,39 @@
 ## 3.8.0
 
-A review pass over `lib/`, `android/` and `ios/`. Everything below is a bug fix. The API additions are
-`PdfControllerPinch.dispose()` and `PdfLoadingFailure`; the one behavioural change a caller can observe is
-`PdfPage.width`/`.height` on iOS for rotated pages (see below).
+A review pass over `lib/`, `android/` and `ios/` — all bug fixes. New API: `PdfControllerPinch.dispose()` and
+`PdfLoadingFailure`. **`PdfPage.width`/`.height` change value on iOS for rotated pages** — they are the displayed
+size now, as they already were on Android.
 
-### Rotated pages were sized wrong on iOS — upstream #554
+### Rotation · upstream #554
 
-Measured on an API 34 device rather than reasoned about: Android's `getPage` reports the **displayed** size, with
-`/Rotate` applied — a 300x400 page rotated 90 degrees reports 400x300 — and `render(w, h)` returns exactly `w` x `h`,
-stretched to fill. iOS reported the raw mediaBox and letterboxed, and `render` transposed its bitmap for a rotated
-page while reporting the untransposed dimensions, so the image was labelled with the wrong aspect ratio. Both halves
-now match Android.
+- iOS `getPage` reported the raw mediaBox instead of the displayed size, so a rotated page was laid out with one
+  aspect ratio and drawn with another — the texture path already worked in rotated space.
+- `Document.render` builds its transform explicitly rather than via `getDrawingTransform`, which preserves aspect
+  ratio and will not scale up; the workaround for that double-scaled the page whenever it did not fit. Pages now
+  stretch to fill exactly (as on Android), the background covers the whole bitmap rather than just the mapped
+  mediaBox, and crop rects address the same region on both platforms.
+- A document whose pages differ in size kept the first page's placeholder layout: the relayout ran but scheduled no
+  repaint.
 
-That mismatch is the whole of [#554](https://github.com/ScerIO/packages.flutter/issues/554): the texture path already
-worked in rotated space (`getRotatedSize`), so a rotated page was laid out with one aspect ratio and drawn with
-another.
+### Platform channel · Android
 
-**`PdfPage.width`/`.height` therefore change value on iOS for rotated pages** — they are the displayed size now, as
-they always were on Android. Nothing changes for a page with no `/Rotate`.
+- `updateTexture` replied twice on a zero-size rect — the guard had no `return`.
+- Pigeon generates no error handling around an `@async` host method, so any throw before `updateTexture`'s inner
+  `try` left the reply unsent and the Dart future pending forever. `updateTexture` and `resizeTexture` are now total.
+- `renderPage` caught `Exception`, which excludes the `OutOfMemoryError` a large render fails with, and replied off
+  the platform thread on four early returns.
+- `surface.use { }` released the `SurfaceProducer`'s surface after every update, forcing the engine to reallocate an
+  `ImageReader` and its buffers per frame while scrolling.
+- The dirty `Rect` was built as `(left, top, width, height)`; it is `(left, top, right, bottom)`, so any non-zero
+  destination clipped.
 
-`Document.render` on iOS builds its transform explicitly instead of going through `getDrawingTransform`, which
-preserves aspect ratio and refuses to scale up. The documented workaround for that multiplied its own scale on top of
-an already-scaled transform whenever the page did not fit — drawing the page undersized and anisotropically
-distorted — and its guard tested only the width, so a bitmap narrower but much taller than the page skipped the
-correction entirely. Crop rects now also address the same region on both platforms, and the background colour fills
-the whole bitmap rather than just the mapped mediaBox (letterbox margins used to stay transparent, or black in JPEG).
+### Locking
 
-**A document whose pages differ in size laid out wrong.** Every page starts with the first page's size as a
-placeholder; when a page's real size arrived, the relayout ran but scheduled no repaint — `_determinePagesToShow`
-only repaints when a page's *visibility* changes. One landscape or rotated page among portrait ones kept the
-placeholder layout until some unrelated rebuild came along.
-
-### Two ways to hang or crash the platform channel (Android)
-
-- `updateTexture` with a zero-size rect invoked its reply callback and then **fell through** into
-  `Bitmap.createBitmap(0, 0)`, whose exception invoked the callback a second time. The engine rejects the duplicate.
-- Pigeon generates no error handling around an `@async` host method, so anything thrown before `updateTexture`'s
-  inner `try` — an unknown texture id, a closed document, a null field — meant the reply was *never* sent and the
-  Dart future never completed. Both `updateTexture` and `resizeTexture` are now total.
-- `renderPage` caught `Exception`, which excludes `OutOfMemoryError` — the likeliest failure for a large render, and
-  another silent hang. It now catches `Throwable`, and replies on the platform thread on every path.
-
-### Android released a Surface it did not own
-
-`surface.use { }` — a local extension, since `Surface` is not `Closeable` — called `release()` on the
-`SurfaceProducer`'s surface after *every* texture update, forcing the engine to reallocate an `ImageReader` and its
-buffers on every frame of a scroll or pinch. The producer owns that surface for the texture's whole lifetime.
-
-### Documents are now serialized per document, not globally (and iOS is serialized at all)
-
-- Dart's `Lock` was process-global, so a render on one document blocked an unrelated render on another. It is now
-  per-`PdfDocument`, and `PdfPageTexture.updateRect` — the hottest call in the plugin — takes it too, which it never
-  did.
-- On iOS, `Repository`'s lock only ever guarded the *dictionary*. Two callers could hold the same `CGPDFDocument`,
-  and `renderPage` (render queue) genuinely raced `updateTexture`/`getPage` (platform thread) on its shared page
-  cache. `Document.withPage` now serializes every access, mirroring Android.
-- Android's `Repository` used a plain `HashMap` across those same two threads; it is a `ConcurrentHashMap` now.
+- Dart's `Lock` was process-global, so unrelated documents serialized against each other. It is per-`PdfDocument`
+  now, and `PdfPageTexture.updateRect` takes it.
+- iOS had no document lock at all: `Repository`'s guarded the dictionary, not the `CGPDFDocument` it handed out, so
+  the render queue raced the platform thread on a shared page cache. `Document.withPage` serializes every access.
+- Android's repository was a plain `HashMap` across those same two threads; it is a `ConcurrentHashMap`.
 
 ### Platform divergences
 
@@ -69,64 +47,40 @@ buffers on every frame of a scroll or pinch. The producer owns that surface for 
 | `format`/`backgroundColor`/`quality` absent | defaulted on Android, whole call failed on iOS | defaulted on both |
 | malformed `backgroundColor` | throws on Android, falls back on iOS | falls back on both |
 
-`Rect(destX, destY, width, height)` on Android is `(left, top, right, bottom)`, so a non-zero destination clipped the
-drawn region; it is now `(destX, destY, destX + width, destY + height)`.
-
 ### Leaks and lifecycle
 
-- **Reloading a document leaked every texture.** `loadDocument` announced `loading` before releasing, and the view's
-  listener clears `_pages` synchronously — so `_releasePages()` found an empty list and nothing was unregistered.
-- **Reusing one controller across two `PdfViewPinch`es showed a blank view forever**, because `_pages` lives on the
-  State and was only ever filled by the initial load. Re-attach now rebuilds it.
-- `PdfControllerPinch` never removed its page-change listener (a closure, so it *couldn't*), gained a second copy per
-  attach, and threw against the detached state. It is a field now, removed on detach, and `dispose()` exists.
-- `_PdfPageState.dispose()` was never called by anything, leaking two `ValueNotifier`s per page.
-- Post-dispose async work — `setState`, texture creation, a resurrected timer calling `View.of` on a dead element —
-  is guarded.
-- Two texture races: `preview` could be nulled across an `await` and then force-unwrapped, and `realSize ??= await
-  create()` let two passes both create a texture, orphaning one.
-- Neither platform released anything on engine detach: Android's `clear()` dropped documents without closing their
-  `PdfRenderer`/fd and left `SurfaceProducer`s registered; iOS had no detach hook at all.
-- Android wrote every data/asset document into `cacheDir` under a fresh UUID and never deleted it. The file is now
-  unlinked as soon as the descriptor is open.
+- Reloading a document unregistered none of the outgoing textures.
+- Reusing one controller across two `PdfViewPinch`es left the second permanently blank.
+- The controller's page-change listener was a closure, so it could never be removed; it accumulated per attach and
+  fired against the detached state.
+- `_PdfPageState.dispose()` was never called by anything.
+- Post-dispose async work — `setState`, texture creation, a timer reaching `View.of` on a dead element — is guarded.
+- Two texture-creation races could orphan a texture.
+- Neither platform released anything on engine detach: Android dropped documents without closing their `PdfRenderer`
+  and fd and left `SurfaceProducer`s registered; iOS had no detach hook.
+- Android never deleted the `cacheDir` file it wrote per data/asset open.
 - Bitmaps are recycled on every path, including exceptions.
 
 ### Performance
 
-- **The viewer rebuilt every frame, at rest.** `iterateLaidOutPages` wrote `isVisibleInsideView` during build using a
-  rect inflated by `padding`, while `_determinePagesToShow` used an uninflated one. Any page in that band flipped
-  between the two forever: build says visible, determine says not, which requests a relayout, which rebuilds. Build
-  now reads visibility instead of deciding it.
-- Page rects are recomputed only when the view size or a page size actually changes. They are a function of neither
-  the scroll offset nor the zoom, but `_reLayout` runs inside the `LayoutBuilder` — so three O(pages) passes ran on
-  every frame of every scroll.
-- Preview textures purge at 6 viewport-lengths rather than 33, and the real-size overlay at 2 rather than 8. A
-  full-resolution texture per page was previously retained for roughly 33 screens' worth of scrolling in each
-  direction.
-- iOS reuses pixel buffers from a `CVPixelBufferPool` instead of allocating a fresh multi-megabyte buffer per frame.
-
-### Other
-
-- `loadDocument(initialPage: n)` now actually scrolls to page n. It computed the matrix, used it for visibility
-  maths, and threw it away — so `onPageChanged` reported page n while the view stayed on page 1.
-- A failed `updateRect` no longer marks the page loaded; the page used to stay blank forever, since nothing retries a
-  loaded page.
-- `getPageRect` returns null instead of throwing `RangeError` when the page list is empty or short, which it is
-  during a load.
-- `unregisterTexture` drops the retained `UpdateTextureMessage`; texture ids are reused, so a later texture with the
-  same id could have redrawn the previous texture's page.
+- The viewer rebuilt every frame at rest: build wrote `isVisibleInsideView` from a padding-inflated rect while
+  `_determinePagesToShow` used an uninflated one, so pages in that band flipped between the two forever.
+- Page rects are recomputed only when the view size or a page size changes, not on every scroll and zoom frame.
+- Preview textures purge at 6 viewport-lengths rather than 33, and the real-size overlay at 2 rather than 8.
+- iOS pools pixel buffers instead of allocating a fresh multi-megabyte one per frame.
 
 ### Correctness
 
-- `PdfPageImage.==` compared only byte *length* while `hashCode` mixed in `pageNumber`, so equal objects could hash
-  differently — which breaks `Set` and `Map`. Both now use the same fields.
-- iOS force-unwrapped `makeImage()` and `cropping(to:)`, either of which returns nil in reachable cases (an
-  out-of-bounds `cropRect` was a guaranteed crash). Both are errors now.
-- `updateTex` published the pixel buffer and signalled the engine *before* unlocking it, and treated a nil
-  `CGContext` as success, handing back a blank texture. It also never checked that the destination rect fit inside
-  the buffer.
-- A non-`Exception` failure during document load was flattened to `Exception('Unknown error')`, discarding the only
-  diagnostic; it is wrapped in `PdfLoadingFailure` with its stack.
+- `PdfPageImage.==` compared only byte length while `hashCode` mixed in `pageNumber`, so equal objects could hash
+  differently — which breaks `Set` and `Map`.
+- iOS force-unwrapped `makeImage()` and `cropping(to:)`; an out-of-bounds `cropRect` was a guaranteed crash.
+- `updateTex` published the pixel buffer before unlocking it, treated a nil `CGContext` as success, and never checked
+  the destination rect fit inside the buffer.
+- `loadDocument(initialPage: n)` reported page n but stayed on page 1.
+- A failed `updateRect` marked the page loaded, pinning it blank — nothing retries a loaded page.
+- `getPageRect` threw `RangeError` during a load instead of returning null.
+- A non-`Exception` load failure was flattened to `Exception('Unknown error')`; it is wrapped in `PdfLoadingFailure`.
+- `unregisterTexture` kept its retained `UpdateTextureMessage`, so a reused texture id could redraw the old page.
 
 ## 3.7.0
 
