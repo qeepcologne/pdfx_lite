@@ -27,3 +27,5 @@ flutter:
     - assets/rotated90.pdf
     - assets/locked.pdf
     - assets/perms_only.pdf
+    - assets/cyrillic_embedded.pdf
+    - assets/cyrillic_noembed.pdf

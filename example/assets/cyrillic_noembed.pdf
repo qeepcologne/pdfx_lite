@@ -1,0 +1,65 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 620] /Resources << /Font << /F1 5 0 R /F2 9 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 200 >>
+stream
+BT /F1 48 Tf 60 500 Td <01> Tj <02> Tj <03> Tj <04> Tj <05> Tj <06> Tj ET
+BT /F2 28 Tf 60 430 Td (Latin control OK 2026) Tj ET
+BT /F2 20 Tf 60 380 Td (non-embedded font: substituted by renderer) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /TrueType /BaseFont /Arial /FirstChar 1 /LastChar 6 /Widths [600 600 600 600 600 600] /FontDescriptor 8 0 R /Encoding 6 0 R /ToUnicode 7 0 R >>
+endobj
+6 0 obj
+<< /Type /Encoding /Differences [1 /uni041F /uni0440 /uni0438 /uni0432 /uni0435 /uni0442] >>
+endobj
+7 0 obj
+<< /Length 268 >>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin begincmap
+1 begincodespacerange <01> <06> endcodespacerange
+6 beginbfchar
+<01> <041F>
+<02> <0440>
+<03> <0438>
+<04> <0432>
+<05> <0435>
+<06> <0442>
+endbfchar
+endcmap CMapName currentdict /CMap defineresource pop end end
+endstream
+endobj
+8 0 obj
+<< /Type /FontDescriptor /FontName /Arial /Flags 32 /FontBBox [-200 -200 1000 900] /ItalicAngle 0 /Ascent 800 /Descent -200 /CapHeight 700 /StemV 80 >>
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000508 00000 n 
+0000000691 00000 n 
+0000000799 00000 n 
+0000001118 00000 n 
+0000001285 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1355
+%%EOF

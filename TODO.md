@@ -3,10 +3,6 @@
 Work carried over from upstream [`ScerIO/packages.flutter`](https://github.com/ScerIO/packages.flutter) — bugs and PRs
 still relevant now that `pdfx_lite` is Android + iOS only. Issue/PR numbers are upstream's.
 
-**Fixed since:** #554 (iOS aspect-ratio distortion on rotated pages) — 3.8.0. Root cause was `getPage` reporting the
-unrotated mediaBox while the texture path worked in rotated space; iOS now reports the displayed size, matching
-Android. Verified on both platforms with `example/lib/rotation_probe.dart` and `example/assets/rotated90.pdf`.
-
 ## 1. Needs verification
 
 Upstream reports that plausibly still apply to us, but which nobody has reproduced against this codebase. **Reproduce
@@ -17,7 +13,6 @@ before fixing** — several may already be dead, or may not be ours to fix.
 | #560 | Android: blurry/broken text since Flutter 3.27 | `Messages.kt` `onDocumentOrSurfaceChanged` — the texture `Matrix` is built from `fullWidth / page.width` | High-DPI device; suspect we render at texture size, not device pixel ratio |
 | #585 | Blurry text when pinch-zooming in landscape | same texture path as #560 — probably the same bug | Zoom in hard on a landscape page |
 | #532 | Wrong height returned for certain documents | possibly **already fixed** in 3.8.0 — iOS's `getPage` used to report the raw mediaBox, so any rotated page came back with height and width swapped | Needs the reporter's PDF to confirm |
-| #557 | Cyrillic characters not displayed on Android | Platform `PdfRenderer` font embedding — quite possibly **not ours** | Needs the reporter's PDF |
 
 ## 2. Annotations are not rendered — on either platform · #592, #584
 
@@ -61,6 +56,10 @@ the draw has to stay serialised (the `Repository` lock covers the lookup, not th
 
 ## 3. Do not take
 
+- **#557 "Cyrillic not displayed on Android"** — not ours. Embedded-font Cyrillic renders correctly on Android
+  (verified via `example/lib/cyrillic_probe.dart` + `cyrillic_embedded.pdf`); only a PDF with a non-embedded `/Arial`
+  reference drops it, and poppler drops that same file too. Renderer font-substitution, not fixable from the plugin —
+  the reporter's PDF just needs its font embedded.
 - **PR #594 "Expose `InteractiveViewer` onInteraction-methods"** — a *feature* PR, not a bug: nothing is broken. It
   adds three nullable callbacks that do nothing unless a caller passes them. Speculative public API for someone else's
   use case; it stays a 15-line change if one ever turns up here. Add it when something needs it, not before.
