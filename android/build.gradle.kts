@@ -2,6 +2,10 @@ plugins {
     id("com.android.library")
 }
 
+//Single source for both compile tasks: javac defaults to 11, Kotlin follows the JDK toolchain, and AGP 9 fails the
+//build unless the two share one target. 17 matches Flutter 3.44's own Gradle templates; raise it with the Flutter floor.
+val javaVersion = JavaVersion.VERSION_17
+
 //AGP 9 only, so no `kotlin-android` plugin and no compat guard. Kotlin still compiles whether or not the host sets
 //`android.builtInKotlin=false` — Flutter's app template sets it, and its migrator re-adds it on every build.
 //`src/main/kotlin` is a default source dir.
@@ -13,17 +17,15 @@ android {
         minSdk = 24
     }
 
-    //javac defaults to 11 while Kotlin follows the JDK toolchain (25 here), and AGP fails the build on the
-    //mismatch. Pin both to 17, matching Flutter's own app template.
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(javaVersion.majorVersion)
     }
 }
 
