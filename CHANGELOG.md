@@ -1,3 +1,12 @@
+## 3.9.0
+
+- Requires **Dart 3.13 / Flutter 3.47** (`sdk: ^3.13.0`, `flutter: >=3.47.0`). Dart 3.13 rejects `final`/`var` in a
+  parameter list, so packages generating or hand-writing that form no longer compile — this package never did, the
+  bump only fixes the floor to the toolchain it is now built and tested against.
+- `PdfLoadingFailure` uses a primary constructor. No API change: same positional `error` / `stackTrace` fields.
+- Removed `android/gradle/wrapper/` — the plugin has no `gradlew` and is built by the consuming app's wrapper, so the
+  file was never read. The example app keeps its own wrapper (now Gradle 9.7.0).
+
 ## 3.8.0
 
 A review pass over `lib/`, `android/` and `ios/` — all bug fixes. New API: `PdfControllerPinch.dispose()` and

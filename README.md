@@ -13,7 +13,7 @@ Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 
 ```yaml
 dependencies:
-  pdfx_lite: ^3.8.0
+  pdfx_lite: ^3.9.0
 ```
 
 ```dart
@@ -75,14 +75,14 @@ Otherwise catch:
 | Generated native bridge | 1479 lines of Java + a hand-translated `Messages.swift` | generated from one schema, no Java |
 | **Android** | | |
 | minSdk / compileSdk | 16 / 35 | 24 / 37 |
-| Gradle | 8.10.2 | 9.6.1 |
+| Gradle | 8.10.2 | 9.7.0 |
 | AGP | Groovy `build.gradle`, AGP 8.5.2 + `kotlin-android` | **9 only**, Kotlin DSL |
 | **iOS** | | |
 | Integration | CocoaPods podspec + SPM | **SPM only** |
 | Deployment target | 13.0 | 15.0 |
 | Swift / Swift-Tools | 5 / 5.9 | **6 / 6.2** — strict concurrency, Xcode 26+ |
 | **Dart** | | |
-| Dart / Flutter | >=3.3 / >=3.24 | ^3.12 / >=3.44 |
+| Dart / Flutter | >=3.3 / >=3.24 | ^3.13 / >=3.47 |
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |
 | Dependencies | + `photo_view`, `flutter_web_plugins`, `web`, `universal_platform`, `uuid`, `extension`, `plugin_platform_interface` | those seven dropped — only `meta` (required by Pigeon's generated bridge import), `synchronized`, `vector_math` remain |
 | Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |

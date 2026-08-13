@@ -332,12 +332,7 @@ class PdfControllerPinch extends TransformationController {
 }
 
 /// Wraps a non-[Exception] failure from document loading so the original object and its stack survive.
-class PdfLoadingFailure implements Exception {
-  PdfLoadingFailure(this.error, this.stackTrace);
-
-  final Object error;
-  final StackTrace stackTrace;
-
+class PdfLoadingFailure(final Object error, final StackTrace stackTrace) implements Exception {
   @override
   String toString() => 'PdfLoadingFailure: $error';
 }
