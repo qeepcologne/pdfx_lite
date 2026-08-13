@@ -12,11 +12,8 @@ import android.os.Build
 fun parseCompressFormat(format: Int, quality: Int): Bitmap.CompressFormat = when (format) {
     0 -> Bitmap.CompressFormat.JPEG
     1 -> Bitmap.CompressFormat.PNG
-    2 -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        if (quality == 100) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP_LOSSY
-    } else {
-        @Suppress("DEPRECATION")
-        Bitmap.CompressFormat.WEBP
-    }
+    2 if Build.VERSION.SDK_INT < Build.VERSION_CODES.R -> @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
+    2 if quality == 100 -> Bitmap.CompressFormat.WEBP_LOSSLESS
+    2 -> Bitmap.CompressFormat.WEBP_LOSSY
     else -> Bitmap.CompressFormat.JPEG
 }

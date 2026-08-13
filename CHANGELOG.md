@@ -6,6 +6,8 @@
 - `PdfLoadingFailure` uses a primary constructor. No API change: same positional `error` / `stackTrace` fields.
 - Removed `android/gradle/wrapper/` — the plugin has no `gradlew` and is built by the consuming app's wrapper, so the
   file was never read. The example app keeps its own wrapper (now Gradle 9.7.0).
+- `parseCompressFormat` uses Kotlin `when` guards (`2 if quality == 100 ->`) instead of a nested `if`/`else` inside a
+  branch. Same mapping; guards need Kotlin 2.2, which AGP 9 already provides.
 
 ## 3.8.0
 
