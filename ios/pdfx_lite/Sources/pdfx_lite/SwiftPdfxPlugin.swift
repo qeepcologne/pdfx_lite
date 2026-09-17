@@ -27,13 +27,15 @@ private func openFailure(_ error: Error) -> PigeonError {
 }
 
 /// `@unchecked Sendable`: `textures` is only touched on the platform thread — the synchronous `PdfxApi` methods run
-/// there because pigeon's generated handler calls them inline, and the `async` ones because they are `@MainActor`
-/// below (pigeon invokes them from `Task { @MainActor in … }`, so that costs no hop). `registrar`/`dispQueue` are
-/// immutable, and the document map is lock-guarded by `Repository` while each `CGPDFDocument` behind it is
-/// lock-guarded by `Document` itself — the latter matters, because the repository's lock only ever protected the
-/// dictionary, not the documents it hands out.
-/// The type itself stays non-isolated: the synchronous `PdfxApi` requirements are non-isolated and only an `async`
-/// requirement can be witnessed by an isolated method.
+/// there because pigeon's generated handler calls them inline, and the `async` ones because `Package.swift` enables
+/// `NonisolatedNonsendingByDefault`, which runs them on their caller's executor — and pigeon calls every handler
+/// from `Task { @MainActor in … }`. `registrar`/`dispQueue` are immutable, and the document map is lock-guarded by
+/// `Repository` while each `CGPDFDocument` behind it is lock-guarded by `Document` itself — the latter matters,
+/// because the repository's lock only ever protected the dictionary, not the documents it hands out.
+///
+/// Isolating the type, or its `async` methods, is not an option: pigeon's `PdfxApi` requirements are non-isolated,
+/// and its message classes are not `Sendable`, so an isolated witness cannot receive them (`openDocumentData` and
+/// `renderPage` failed exactly that way in 3.10.0, under `NonSendableInAsyncConformanceOrOverride`).
 public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked Sendable {
     let registrar: FlutterPluginRegistrar
     let dispQueue = DispatchQueue(label: "io.scer.pdf_renderer")
@@ -65,9 +67,9 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         documents.clear()
     }
 
-    /// `@MainActor`, like every `async` method here: pigeon calls it from `Task { @MainActor in … }`, so this keeps
-    /// the work on the platform thread exactly where the completion-based version ran it.
-    @MainActor
+    /// Non-isolated, like every `async` method here, but caller-executing (`NonisolatedNonsendingByDefault`, see
+    /// Package.swift): pigeon calls it from `Task { @MainActor in … }`, so the body runs on the platform thread
+    /// exactly where the completion-based version ran it — without a non-Sendable message crossing anything.
     func openDocumentData(message: OpenDataMessage) async throws -> OpenReply {
         guard let data = message.data else {
             throw renderError("Arguments not sended")
@@ -86,7 +88,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         )
     }
 
-    @MainActor
     func openDocumentFile(message: OpenPathMessage) async throws -> OpenReply {
         guard let pdfFilePath = message.path else {
             throw renderError("Arguments not sended")
@@ -105,7 +106,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         )
     }
 
-    @MainActor
     func openDocumentAsset(message: OpenPathMessage) async throws -> OpenReply {
         guard let name = message.path else {
             throw renderError("Arguments not sended")
@@ -132,7 +132,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         documents.close(id: id)
     }
 
-    @MainActor
     func getPage(message: GetPageMessage) async throws -> GetPageReply {
         guard let documentId = message.documentId, let pageNumber = message.pageNumber else {
             throw renderError("Need call arguments: documentId & pageNumber")
@@ -153,7 +152,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         return reply
     }
 
-    @MainActor
     func renderPage(message: RenderPageMessage) async throws -> RenderPageReply {
         guard let documentId = message.documentId,
               let pageNumber = message.pageNumber,
@@ -187,7 +185,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
 
         //Still the serial render queue, so concurrent renders keep queueing up instead of each grabbing memory for a
         //full-page bitmap. `Page.DataResult` is a Sendable value type, so it rides back without a wrapper — and
-        //resuming the continuation returns us to this method's actor, which is what the manual
+        //resuming the continuation returns us to this method's caller-inherited executor, which is what the manual
         //`DispatchQueue.main.async` hops used to do by hand.
         let data: Page.DataResult = try await withCheckedThrowingContinuation { continuation in
             dispQueue.async {
@@ -242,7 +240,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         textures[texId] = nil
     }
 
-    @MainActor
     func resizeTexture(message: ResizeTextureMessage) async throws {
         guard let texId = message.textureId, let width = message.width, let height = message.height else {
             throw renderError("Need call arguments: textureId, width, height")
@@ -253,7 +250,6 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         pageTex.resize(width: Int(width), height: Int(height))
     }
 
-    @MainActor
     func updateTexture(message: UpdateTextureMessage) async throws {
         guard let texId = message.textureId, let pageTex = textures[texId] else {
             throw renderError("No texture of texId=\(String(describing: message.textureId))")

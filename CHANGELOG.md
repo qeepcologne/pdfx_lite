@@ -1,3 +1,13 @@
+## 3.10.1
+
+- **iOS**: fixes a build failure in 3.10.0 — `NonSendableInAsyncConformanceOrOverride` on `openDocumentData` and
+  `renderPage`. The pigeon-29 migration marked the `async` `PdfxApi` methods `@MainActor` to hold them on the
+  platform thread, but an isolated witness of a non-isolated `async` requirement can neither receive nor return a
+  non-Sendable type — and pigeon's message classes are not `Sendable`. The methods are non-isolated again, and
+  `Package.swift` enables `NonisolatedNonsendingByDefault` instead: async functions then run on their caller's
+  executor, which is the very same platform thread (pigeon calls each handler from `Task { @MainActor in … }`),
+  with nothing crossing an isolation boundary. No behaviour change beyond 3.10.0 actually compiling.
+
 ## 3.10.0
 
 - **iOS**: Xcode floor raised to **27.0** (Swift 6.4 toolchain). `Package.swift` declares `swift-tools-version: 6.4`.

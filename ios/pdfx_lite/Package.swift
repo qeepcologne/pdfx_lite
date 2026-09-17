@@ -25,10 +25,16 @@ let package = Package(
             path: "Sources/pdfx_lite",
             swiftSettings: [
                 // Strict concurrency. Shared state (the document/page repositories, the texture map) is reached from
-                // both the platform thread and the render queue, so it is lock-guarded rather than actor-isolated:
-                // pigeon's generated `PdfxApi` is a plain protocol whose completions are not `@Sendable`, which rules
-                // out making the conforming class actor-isolated.
+                // both the platform thread and the render queue, so it is lock-guarded rather than actor-isolated.
                 .swiftLanguageMode(.v6),
+                // Async funcs run on the caller's executor unless marked @concurrent. Load-bearing here, not
+                // cosmetic: pigeon's `PdfxApi` requirements are non-isolated `async`, and its message classes are
+                // not Sendable. Without this, the implementations would either hop to the global pool (racing the
+                // texture map against the platform thread) or, if isolated to fix that, fail to compile —
+                // a non-Sendable parameter cannot be sent into an isolated witness of a non-isolated requirement.
+                // Caller-executor semantics sidestep both: nothing crosses an isolation boundary at all, and
+                // pigeon calls every handler from `Task { @MainActor in … }`, i.e. the platform thread.
+                .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
             ]
         ),
     ]
