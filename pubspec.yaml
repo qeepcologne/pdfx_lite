@@ -1,7 +1,7 @@
 name: pdfx_lite
 description: Minimal, legacy-free PDF rendering & viewing for Flutter (Android + iOS) — no CocoaPods, SPM-only, no web/desktop renderers. Replacement for pdfx.
 repository: https://github.com/qeepcologne/pdfx_lite
-version: 3.9.0
+version: 3.10.0
 
 environment:
   sdk: ^3.13.0
@@ -24,7 +24,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   #Codegen only — dev deps are not resolved transitively, so nothing here reaches consumers of the package.
   #Regenerate the bridge with: dart run pigeon --input pigeons/messages.dart
-  pigeon: ^27.2.0
+  pigeon: ^29.0.2
 
 flutter:
   plugin:

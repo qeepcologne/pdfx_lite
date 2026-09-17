@@ -71,7 +71,7 @@ Otherwise catch:
 | | pdfx | pdfx_lite |
 |---|---|---|
 | Platforms | Android, iOS, macOS, Windows, Web | **Android, iOS** |
-| Platform channel | pigeon 4 (mobile) + method channel (web/Windows) | pigeon 27 only — generated Kotlin + Swift + Dart |
+| Platform channel | pigeon 4 (mobile) + method channel (web/Windows) | pigeon 29 only — generated Kotlin + Swift + Dart |
 | Generated native bridge | 1479 lines of Java + a hand-translated `Messages.swift` | generated from one schema, no Java |
 | **Android** | | |
 | minSdk / compileSdk | 16 / 35 | 24 / 37 |
@@ -80,7 +80,7 @@ Otherwise catch:
 | **iOS** | | |
 | Integration | CocoaPods podspec + SPM | **SPM only** |
 | Deployment target | 13.0 | 15.0 |
-| Swift / Swift-Tools | 5 / 5.9 | **6 / 6.2** — strict concurrency, Xcode 26+ |
+| Swift / Swift-Tools | 5 / 5.9 | **6 / 6.4** — strict concurrency, Xcode 27+ |
 | **Dart** | | |
 | Dart / Flutter | >=3.3 / >=3.24 | ^3.13 / >=3.47 |
 | Viewers | `PdfView` (image, via `photo_view`) + `PdfViewPinch` (texture) | **`PdfViewPinch` only** — `photo_view` is unmaintained |

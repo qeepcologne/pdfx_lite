@@ -1,3 +1,18 @@
+## 3.10.0
+
+- **iOS**: Xcode floor raised to **27.0** (Swift 6.4 toolchain). `Package.swift` declares `swift-tools-version: 6.4`.
+  Runtime floor unchanged — still **iOS 15+**, which is also Xcode 27's own minimum deployment target.
+- Bridge regenerated with **pigeon 29** (was 27). pigeon 28 changed `@async` host methods to generate `suspend`
+  (Kotlin) and `async throws` (Swift) signatures, so both native sides now return a value or throw a `FlutterError`
+  instead of invoking a callback. No Dart API change, and nothing moved threads: the Swift methods are `@MainActor`
+  (pigeon calls them from `Task { @MainActor in … }`, which is the platform thread they already ran on) and
+  `renderPage` still rasterizes on its serial render queue on iOS and on `Dispatchers.IO` under the plugin's own
+  scope on Android, so an engine detach still abandons an in-flight render.
+- Internal, both platforms: the callback plumbing that shape forced is gone with it — iOS drops the
+  `UncheckedSendable` box that only existed to carry pigeon's non-`@Sendable` completion across `DispatchQueue.async`,
+  and Android's `updateTexture` helper throws instead of taking a nullable callback, which removes the double-reply
+  path its zero-size guard had to work around.
+
 ## 3.9.0
 
 - Requires **Dart 3.13 / Flutter 3.47** (`sdk: ^3.13.0`, `flutter: >=3.47.0`). Dart 3.13 rejects `final`/`var` in a
