@@ -1,14 +1,18 @@
 ## 3.10.1
 
-- **iOS**: fixes a build failure in 3.10.0 — `NonSendableInAsyncConformanceOrOverride` on `openDocumentData` and
-  `renderPage`. The pigeon-29 migration marked the `async` `PdfxApi` methods `@MainActor` to hold them on the
-  platform thread, but an isolated witness of a non-isolated `async` requirement can neither receive nor return a
-  non-Sendable type — and pigeon's message classes are not `Sendable`. The methods are non-isolated again, and
-  `Package.swift` enables `NonisolatedNonsendingByDefault` instead: async functions then run on their caller's
-  executor, which is the very same platform thread (pigeon calls each handler from `Task { @MainActor in … }`),
-  with nothing crossing an isolation boundary. No behaviour change beyond 3.10.0 actually compiling.
+- **iOS**: Xcode floor raised to **27.0** (Swift 6.4 toolchain). `Package.swift` declares `swift-tools-version: 6.4`.
+  Runtime floor unchanged — still **iOS 15+**, which is also Xcode 27's own minimum deployment target.
+- Bridge regenerated with **pigeon 29** (was 27), with the schema moved from `@async` to `@asyncCallback`. pigeon 28
+  turned `@async` into `suspend` (Kotlin) / `async throws` (Swift) output, and its Swift half wraps every handler in
+  `Task { @MainActor in … }`, capturing the non-Sendable `api`, message and `reply` — `SendingRisksDataRace`, which
+  is an error under this package's `swiftLanguageMode(.v6)` and cannot be fixed from here, because the file is
+  regenerated on every codegen run. `@asyncCallback` keeps the completion-based shape: the generated Swift now
+  differs from 3.9.0's only by a `PigeonError.localizedDescription` paren fix and a `deepEquals` case reorder, and
+  both native implementations are unchanged from 3.9.0.
 
-## 3.10.0
+## 3.10.0 (retracted)
+
+- Did not compile on iOS — see 3.10.1. Never install this version.
 
 - **iOS**: Xcode floor raised to **27.0** (Swift 6.4 toolchain). `Package.swift` declares `swift-tools-version: 6.4`.
   Runtime floor unchanged — still **iOS 15+**, which is also Xcode 27's own minimum deployment target.

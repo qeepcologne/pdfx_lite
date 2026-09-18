@@ -108,23 +108,23 @@ abstract class PdfxApi {
   /// says false fails with `PDF_PASSWORD_UNSUPPORTED` rather than being ignored.
   bool isPasswordSupported();
 
-  @async
+  @asyncCallback
   OpenReply openDocumentData(OpenDataMessage message);
-  @async
+  @asyncCallback
   OpenReply openDocumentFile(OpenPathMessage message);
-  @async
+  @asyncCallback
   OpenReply openDocumentAsset(OpenPathMessage message);
   void closeDocument(IdMessage message);
 
-  @async
+  @asyncCallback
   GetPageReply getPage(GetPageMessage message);
-  @async
+  @asyncCallback
   RenderPageReply renderPage(RenderPageMessage message);
 
   RegisterTextureReply registerTexture();
-  @async
+  @asyncCallback
   void updateTexture(UpdateTextureMessage message);
-  @async
+  @asyncCallback
   void resizeTexture(ResizeTextureMessage message);
   void unregisterTexture(UnregisterTextureMessage message);
 }

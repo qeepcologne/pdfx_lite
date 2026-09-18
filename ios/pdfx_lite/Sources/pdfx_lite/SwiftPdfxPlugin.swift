@@ -26,16 +26,22 @@ private func openFailure(_ error: Error) -> PigeonError {
     return renderError("Invalid PDF format")
 }
 
-/// `@unchecked Sendable`: `textures` is only touched on the platform thread — the synchronous `PdfxApi` methods run
-/// there because pigeon's generated handler calls them inline, and the `async` ones because `Package.swift` enables
-/// `NonisolatedNonsendingByDefault`, which runs them on their caller's executor — and pigeon calls every handler
-/// from `Task { @MainActor in … }`. `registrar`/`dispQueue` are immutable, and the document map is lock-guarded by
+/// Carries a non-Sendable value across a `@Sendable` closure boundary.
+///
+/// Needed because pigeon generates `PdfxApi` completions as plain `@escaping (Result<T, Error>) -> Void` — not
+/// `@Sendable` — while `DispatchQueue.async` takes a `@Sendable` closure. Capturing the box (which is Sendable) and
+/// calling `.value` inside is legal; capturing the closure directly is not. Safe here because the completion is
+/// invoked exactly once, back on the main queue.
+private struct UncheckedSendable<T>: @unchecked Sendable {
+    let value: T
+}
+
+/// `@unchecked Sendable`: `textures` is only touched on the platform thread (no pigeon task queue is set, so every
+/// generated handler runs there), `registrar`/`dispQueue` are immutable, and the document map is lock-guarded by
 /// `Repository` while each `CGPDFDocument` behind it is lock-guarded by `Document` itself — the latter matters,
 /// because the repository's lock only ever protected the dictionary, not the documents it hands out.
-///
-/// Isolating the type, or its `async` methods, is not an option: pigeon's `PdfxApi` requirements are non-isolated,
-/// and its message classes are not `Sendable`, so an isolated witness cannot receive them (`openDocumentData` and
-/// `renderPage` failed exactly that way in 3.10.0, under `NonSendableInAsyncConformanceOrOverride`).
+/// Cannot be actor-isolated instead — the generated `PdfxApi` protocol is non-isolated, so an isolated type could
+/// not conform to it.
 public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked Sendable {
     let registrar: FlutterPluginRegistrar
     let dispQueue = DispatchQueue(label: "io.scer.pdf_renderer")
@@ -67,61 +73,58 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         documents.clear()
     }
 
-    /// Non-isolated, like every `async` method here, but caller-executing (`NonisolatedNonsendingByDefault`, see
-    /// Package.swift): pigeon calls it from `Task { @MainActor in … }`, so the body runs on the platform thread
-    /// exactly where the completion-based version ran it — without a non-Sendable message crossing anything.
-    func openDocumentData(message: OpenDataMessage) async throws -> OpenReply {
+    func openDocumentData(message: OpenDataMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
         guard let data = message.data else {
-            throw renderError("Arguments not sended")
+            return completion(.failure(renderError("Arguments not sended")))
         }
         let renderer: CGPDFDocument
         do {
             renderer = try openDataDocument(data: data.data, password: message.password)
         } catch {
-            throw openFailure(error)
+            return completion(.failure(openFailure(error)))
         }
 
         let document = documents.register(renderer: renderer)
-        return OpenReply(
+        completion(.success(OpenReply(
             id: document.id,
             pagesCount: Int64(document.pagesCount)
-        )
+        )))
     }
 
-    func openDocumentFile(message: OpenPathMessage) async throws -> OpenReply {
+    func openDocumentFile(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
         guard let pdfFilePath = message.path else {
-            throw renderError("Arguments not sended")
+            return completion(.failure(renderError("Arguments not sended")))
         }
         let renderer: CGPDFDocument
         do {
             renderer = try openFileDocument(pdfFilePath: pdfFilePath, password: message.password)
         } catch {
-            throw openFailure(error)
+            return completion(.failure(openFailure(error)))
         }
 
         let document = documents.register(renderer: renderer)
-        return OpenReply(
+        completion(.success(OpenReply(
             id: document.id,
             pagesCount: Int64(document.pagesCount)
-        )
+        )))
     }
 
-    func openDocumentAsset(message: OpenPathMessage) async throws -> OpenReply {
+    func openDocumentAsset(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void) {
         guard let name = message.path else {
-            throw renderError("Arguments not sended")
+            return completion(.failure(renderError("Arguments not sended")))
         }
         let renderer: CGPDFDocument
         do {
             renderer = try openAssetDocument(name: name, password: message.password)
         } catch {
-            throw openFailure(error)
+            return completion(.failure(openFailure(error)))
         }
 
         let document = documents.register(renderer: renderer)
-        return OpenReply(
+        completion(.success(OpenReply(
             id: document.id,
             pagesCount: Int64(document.pagesCount)
-        )
+        )))
     }
 
     func closeDocument(message: IdMessage) throws {
@@ -132,32 +135,30 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         documents.close(id: id)
     }
 
-    func getPage(message: GetPageMessage) async throws -> GetPageReply {
+    func getPage(message: GetPageMessage, completion: @escaping (Result<GetPageReply, Error>) -> Void) {
         guard let documentId = message.documentId, let pageNumber = message.pageNumber else {
-            throw renderError("Need call arguments: documentId & pageNumber")
+            return completion(.failure(renderError("Need call arguments: documentId & pageNumber")))
         }
-        //The lookup is the only thing inside the `do`: a "no page" failure raised from within it would otherwise be
-        //caught below and re-reported as "Unexpected error".
-        let reply: GetPageReply?
         do {
-            reply = try documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
+            let reply = try documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
                 GetPageReply(width: page.width, height: page.height)
             }
+            guard let reply else {
+                return completion(.failure(renderError("No page \(pageNumber) in document")))
+            }
+
+            completion(.success(reply))
         } catch let err {
-            throw renderError("Unexpected error: \(err).")
+            completion(.failure(renderError("Unexpected error: \(err).")))
         }
-        guard let reply else {
-            throw renderError("No page \(pageNumber) in document")
-        }
-        return reply
     }
 
-    func renderPage(message: RenderPageMessage) async throws -> RenderPageReply {
+    func renderPage(message: RenderPageMessage, completion: @escaping (Result<RenderPageReply, Error>) -> Void) {
         guard let documentId = message.documentId,
               let pageNumber = message.pageNumber,
               let width = message.width,
               let height = message.height else {
-            throw renderError("Missing render arguments")
+            return completion(.failure(renderError("Missing render arguments")))
         }
         //Defaulted to match Android, which has always defaulted these. The schema declares them optional, so a call
         //that Android renders must not fail outright here.
@@ -165,7 +166,7 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         let backgroundColor = message.backgroundColor ?? "#00FFFFFF"
         let quality = message.quality ?? 100
         guard let compressFormat = CompressFormat(rawValue: Int(format)) else {
-            throw renderError("Unsupported format: \(format)")
+            return completion(.failure(renderError("Unsupported format: \(format)")))
         }
 
         //Set crop if required. A `let`, not a `var`: the render closure below is @Sendable and cannot capture a
@@ -183,43 +184,48 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
                           height: Int(cropHeight))
         }()
 
-        //Still the serial render queue, so concurrent renders keep queueing up instead of each grabbing memory for a
-        //full-page bitmap. `Page.DataResult` is a Sendable value type, so it rides back without a wrapper — and
-        //resuming the continuation returns us to this method's caller-inherited executor, which is what the manual
-        //`DispatchQueue.main.async` hops used to do by hand.
-        let data: Page.DataResult = try await withCheckedThrowingContinuation { continuation in
-            dispQueue.async {
-                do {
-                    //The whole render happens under the document's lock, so it cannot overlap a texture update
-                    //touching the same CGPDFDocument from the platform thread.
-                    let rendered = try self.documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
-                        page.render(
-                            width: Int(width),
-                            height: Int(height),
-                            crop: cropZone,
-                            compressFormat: compressFormat,
-                            backgroundColor: backgroundColor,
-                            quality: Int(quality)
-                        )
+        //The completion is not @Sendable (pigeon generates it plain), so it rides across the queue in a box.
+        let boxed = UncheckedSendable(value: completion)
+
+        dispQueue.async {
+            do {
+                //The whole render happens under the document's lock, so it cannot overlap a texture update touching
+                //the same CGPDFDocument from the platform thread.
+                let rendered = try self.documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
+                    page.render(
+                        width: Int(width),
+                        height: Int(height),
+                        crop: cropZone,
+                        compressFormat: compressFormat,
+                        backgroundColor: backgroundColor,
+                        quality: Int(quality)
+                    )
+                }
+                guard let rendered else {
+                    return DispatchQueue.main.async {
+                        boxed.value(.failure(renderError("No page \(pageNumber) in document")))
                     }
-                    guard let rendered else {
-                        return continuation.resume(throwing: renderError("No page \(pageNumber) in document"))
+                }
+                guard let data = rendered else {
+                    return DispatchQueue.main.async {
+                        boxed.value(.failure(renderError("Page render produced no image")))
                     }
-                    guard let data = rendered else {
-                        return continuation.resume(throwing: renderError("Page render produced no image"))
-                    }
-                    continuation.resume(returning: data)
-                } catch {
-                    continuation.resume(throwing: renderError("Unexpected error: \(error)."))
+                }
+
+                let reply = RenderPageReply(
+                    width: Int64(data.width),
+                    height: Int64(data.height),
+                    bytes: FlutterStandardTypedData(bytes: data.bytes)
+                )
+                DispatchQueue.main.async {
+                    boxed.value(.success(reply))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    boxed.value(.failure(renderError("Unexpected error: \(error).")))
                 }
             }
         }
-
-        return RenderPageReply(
-            width: Int64(data.width),
-            height: Int64(data.height),
-            bytes: FlutterStandardTypedData(bytes: data.bytes)
-        )
     }
 
     func registerTexture() throws -> RegisterTextureReply {
@@ -240,22 +246,23 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         textures[texId] = nil
     }
 
-    func resizeTexture(message: ResizeTextureMessage) async throws {
+    func resizeTexture(message: ResizeTextureMessage, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let texId = message.textureId, let width = message.width, let height = message.height else {
-            throw renderError("Need call arguments: textureId, width, height")
+            return completion(.failure(renderError("Need call arguments: textureId, width, height")))
         }
         guard let pageTex = textures[texId] else {
-            throw renderError("No texture of texId=\(texId)")
+            return completion(.failure(renderError("No texture of texId=\(texId)")))
         }
         pageTex.resize(width: Int(width), height: Int(height))
+        completion(.success(()))
     }
 
-    func updateTexture(message: UpdateTextureMessage) async throws {
+    func updateTexture(message: UpdateTextureMessage, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let texId = message.textureId, let pageTex = textures[texId] else {
-            throw renderError("No texture of texId=\(String(describing: message.textureId))")
+            return completion(.failure(renderError("No texture of texId=\(String(describing: message.textureId))")))
         }
         guard let documentId = message.documentId, let pageNumber = message.pageNumber else {
-            throw renderError("Need call arguments: documentId & pageNumber")
+            return completion(.failure(renderError("Need call arguments: documentId & pageNumber")))
         }
 
         if let tw = message.textureWidth, let th = message.textureHeight {
@@ -263,14 +270,11 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
         }
 
         guard let width = message.width, let height = message.height else {
-            throw renderError("width/height nil")
+            return completion(.failure(renderError("width/height nil")))
         }
 
-        //Only the draw is inside the `do`; a "no page" failure raised from within it would otherwise come back out
-        //as "Cannot render texture".
-        let drawn: Void?
         do {
-            drawn = try documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
+            let drawn: Void? = try documents.get(id: documentId).withPage(pageNumber: Int(pageNumber)) { page in
                 try pageTex.updateTex(
                     page: page.renderer,
                     destX: Int(message.destinationX ?? 0),
@@ -285,11 +289,12 @@ public final class SwiftPdfxPlugin: NSObject, FlutterPlugin, PdfxApi, @unchecked
                     allowAntialiasing: message.allowAntiAliasing ?? true
                 )
             }
+            guard drawn != nil else {
+                return completion(.failure(renderError("No page \(pageNumber) in document")))
+            }
+            completion(.success(()))
         } catch {
-            throw renderError("Cannot render texture: \(error)")
-        }
-        guard drawn != nil else {
-            throw renderError("No page \(pageNumber) in document")
+            completion(.failure(renderError("Cannot render texture: \(error)")))
         }
     }
 

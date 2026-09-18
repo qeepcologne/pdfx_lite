@@ -888,15 +888,15 @@ protocol PdfxApi {
   /// but only Android 15 (API 35) upwards. Passing a `password` on a device that
   /// says false fails with `PDF_PASSWORD_UNSUPPORTED` rather than being ignored.
   func isPasswordSupported() throws -> Bool
-  func openDocumentData(message: OpenDataMessage) async throws -> OpenReply
-  func openDocumentFile(message: OpenPathMessage) async throws -> OpenReply
-  func openDocumentAsset(message: OpenPathMessage) async throws -> OpenReply
+  func openDocumentData(message: OpenDataMessage, completion: @escaping (Result<OpenReply, Error>) -> Void)
+  func openDocumentFile(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void)
+  func openDocumentAsset(message: OpenPathMessage, completion: @escaping (Result<OpenReply, Error>) -> Void)
   func closeDocument(message: IdMessage) throws
-  func getPage(message: GetPageMessage) async throws -> GetPageReply
-  func renderPage(message: RenderPageMessage) async throws -> RenderPageReply
+  func getPage(message: GetPageMessage, completion: @escaping (Result<GetPageReply, Error>) -> Void)
+  func renderPage(message: RenderPageMessage, completion: @escaping (Result<RenderPageReply, Error>) -> Void)
   func registerTexture() throws -> RegisterTextureReply
-  func updateTexture(message: UpdateTextureMessage) async throws
-  func resizeTexture(message: ResizeTextureMessage) async throws
+  func updateTexture(message: UpdateTextureMessage, completion: @escaping (Result<Void, Error>) -> Void)
+  func resizeTexture(message: ResizeTextureMessage, completion: @escaping (Result<Void, Error>) -> Void)
   func unregisterTexture(message: UnregisterTextureMessage) throws
 }
 
@@ -927,11 +927,11 @@ class PdfxApiSetup {
       openDocumentDataChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! OpenDataMessage
-        Task { @MainActor in
-          do {
-            let result = try await api.openDocumentData(message: messageArg)
-            reply(wrapResult(result))
-          } catch {
+        api.openDocumentData(message: messageArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
@@ -944,11 +944,11 @@ class PdfxApiSetup {
       openDocumentFileChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! OpenPathMessage
-        Task { @MainActor in
-          do {
-            let result = try await api.openDocumentFile(message: messageArg)
-            reply(wrapResult(result))
-          } catch {
+        api.openDocumentFile(message: messageArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
@@ -961,11 +961,11 @@ class PdfxApiSetup {
       openDocumentAssetChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! OpenPathMessage
-        Task { @MainActor in
-          do {
-            let result = try await api.openDocumentAsset(message: messageArg)
-            reply(wrapResult(result))
-          } catch {
+        api.openDocumentAsset(message: messageArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
@@ -993,11 +993,11 @@ class PdfxApiSetup {
       getPageChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! GetPageMessage
-        Task { @MainActor in
-          do {
-            let result = try await api.getPage(message: messageArg)
-            reply(wrapResult(result))
-          } catch {
+        api.getPage(message: messageArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
@@ -1010,11 +1010,11 @@ class PdfxApiSetup {
       renderPageChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! RenderPageMessage
-        Task { @MainActor in
-          do {
-            let result = try await api.renderPage(message: messageArg)
-            reply(wrapResult(result))
-          } catch {
+        api.renderPage(message: messageArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
@@ -1040,11 +1040,11 @@ class PdfxApiSetup {
       updateTextureChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! UpdateTextureMessage
-        Task { @MainActor in
-          do {
-            try await api.updateTexture(message: messageArg)
+        api.updateTexture(message: messageArg) { result in
+          switch result {
+          case .success:
             reply(wrapResult(nil))
-          } catch {
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
@@ -1057,11 +1057,11 @@ class PdfxApiSetup {
       resizeTextureChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let messageArg = args[0] as! ResizeTextureMessage
-        Task { @MainActor in
-          do {
-            try await api.resizeTexture(message: messageArg)
+        api.resizeTexture(message: messageArg) { result in
+          switch result {
+          case .success:
             reply(wrapResult(nil))
-          } catch {
+          case .failure(let error):
             reply(wrapError(error))
           }
         }
