@@ -24,6 +24,7 @@ class PdfViewPinch extends StatefulWidget {
     this.padding = 10,
     this.minScale = 1.0,
     this.maxScale = 20.0,
+    this.doubleTapZoomScale = 2.5,
     this.backgroundDecoration = const BoxDecoration(
       color: Color.fromARGB(255, 250, 250, 250),
       boxShadow: [
@@ -45,6 +46,10 @@ class PdfViewPinch extends StatefulWidget {
 
   /// The maximum document zoom scale.
   final double maxScale;
+
+  /// When set, a double tap toggles between the original scale and this scale, zooming about the tapped position.
+  /// Pass null to disable the gesture.
+  final double? doubleTapZoomScale;
 
   /// Page management
   final PdfControllerPinch controller;
@@ -185,6 +190,58 @@ class _PdfViewPinchState extends State<PdfViewPinch>
 
   void _updateControllerMatrix() {
     _controller.value = _animGoTo!.value;
+  }
+
+  Offset? _doubleTapPosition;
+
+  /// Double tap toggles between the original scale and [PdfViewPinch.doubleTapZoomScale], zooming about the tapped
+  /// position. The target is multiplied onto the current transform, so the scroll position inside a multi-page
+  /// document is kept.
+  void _onDoubleTap() {
+    final position = _doubleTapPosition;
+    final scaleTo = widget.doubleTapZoomScale;
+    if (position == null || scaleTo == null) {
+      return;
+    }
+    final current = _controller.value.clone();
+    final currentScale = current.getMaxScaleOnAxis();
+    final targetScale = currentScale > 1.05 ? 1.0 / currentScale : scaleTo;
+    final destination = (Matrix4.identity()
+          ..translateByDouble(position.dx * (1 - targetScale), position.dy * (1 - targetScale), 0, 1)
+          ..scaleByDouble(targetScale, targetScale, targetScale, 1))
+        .multiplied(current);
+    _goTo(destination: _clampToDocument(destination));
+  }
+
+  /// Keeps a destination matrix within the document bounds -- a gesture is clamped by `InteractiveViewer` itself,
+  /// a programmatic transform is not.
+  Matrix4 _clampToDocument(Matrix4 destination) {
+    final docSize = _docSize;
+    final viewSize = _lastViewSize;
+    if (docSize == null || viewSize == null) {
+      return destination;
+    }
+    final scale = destination.getMaxScaleOnAxis();
+    final minX = viewSize.width - docSize.width * scale;
+    final minY = viewSize.height - docSize.height * scale;
+    final translation = destination.getTranslation();
+    return destination
+      ..setTranslationRaw(
+        translation.x.clamp(minX < 0 ? minX : 0.0, 0.0),
+        translation.y.clamp(minY < 0 ? minY : 0.0, 0.0),
+        translation.z,
+      );
+  }
+
+  Widget _wrapWithDoubleTap(Widget viewer) {
+    if (widget.doubleTapZoomScale == null) {
+      return viewer;
+    }
+    return GestureDetector(
+      onDoubleTapDown: (details) => _doubleTapPosition = details.localPosition,
+      onDoubleTap: _onDoubleTap,
+      child: viewer,
+    );
   }
 
   void _reLayout(Size? viewSize) {
@@ -643,7 +700,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         final viewSize = Size(constraints.maxWidth, constraints.maxHeight);
         _reLayout(viewSize);
         final docSize = _docSize ?? const Size(10, 10); // dummy size
-        return InteractiveViewer(
+        final viewer = InteractiveViewer(
           transformationController: _controller,
           constrained: false,
           boundaryMargin: _minScale < 1
@@ -662,6 +719,7 @@ class _PdfViewPinchState extends State<PdfViewPinch>
             ),
           ),
         );
+        return _wrapWithDoubleTap(viewer);
       },
     );
   }
