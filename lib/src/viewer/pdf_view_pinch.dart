@@ -259,6 +259,14 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         page.rect = Rect.fromLTWH(left, _padding, w, h);
         left += w + _padding;
       }
+      // See the vertical branch: keep the child at least as wide as the viewport.
+      if (left < viewSize.width) {
+        final offset = (viewSize.width - left) / 2;
+        for (final page in _pages) {
+          page.rect = page.rect!.translate(offset, 0);
+        }
+        left = viewSize.width;
+      }
       _docSize = Size(left, viewSize.height);
     } else {
       var top = _padding;
@@ -268,6 +276,18 @@ class _PdfViewPinchState extends State<PdfViewPinch>
         final h = page.pageSize.height * ratio;
         page.rect = Rect.fromLTWH(_padding, top, w, h);
         top += h + _padding;
+      }
+      // A document shorter than the viewport is centered and claims the full viewport height. `InteractiveViewer`
+      // never lets a gesture shrink its boundary below the viewport, so with a smaller child the boundary stayed at
+      // viewport size while the child did not -- zooming back out stuck above the original scale (upstream #489).
+      // With the child matching the viewport the boundary is the child again: scale 1.0 is reachable by gesture,
+      // panning is clamped to the document, and the initial view is centered.
+      if (top < viewSize.height) {
+        final offset = (viewSize.height - top) / 2;
+        for (final page in _pages) {
+          page.rect = page.rect!.translate(0, offset);
+        }
+        top = viewSize.height;
       }
       _docSize = Size(viewSize.width, top);
     }
