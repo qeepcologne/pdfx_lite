@@ -1,4 +1,4 @@
-## Unreleased
+## 3.11.0
 
 - **PdfViewPinch**: a document smaller than the viewport (a single-page receipt, a scan) is now centered, and pinching
   back out reaches the original scale again. `InteractiveViewer` never lets a gesture shrink below
