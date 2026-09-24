@@ -13,7 +13,7 @@ Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 
 ```yaml
 dependencies:
-  pdfx_lite: ^3.9.0
+  pdfx_lite: ^3.11.0
 ```
 
 ```dart
@@ -24,6 +24,14 @@ final controller = PdfControllerPinch(
 );
 // ...
 PdfViewPinch(controller: controller);
+```
+
+Double-tap zoom is opt-in: `doubleTapZoomScale` toggles between the original scale and the given one, zooming about
+the tapped position (clamped to `minScale`..`maxScale`). It is off by default because a double-tap recognizer delays
+single taps handled around the viewer by the double-tap timeout (~300 ms).
+
+```dart
+PdfViewPinch(controller: controller, doubleTapZoomScale: 2.5);
 ```
 
 ## Migrating from pdfx
@@ -88,5 +96,6 @@ Otherwise catch:
 | Encrypted PDFs | `password:` accepted, then **silently ignored** | **honoured** on iOS and Android 15+ |
 
 Plus bug fixes `pdfx` 2.9.2 still has — a crash in `PdfViewPinch`, broken cropping on Android, an iOS data race,
-rotated pages mis-sized on iOS, a viewer that rebuilt every frame even at rest, and more. See the
+rotated pages mis-sized on iOS, a viewer that rebuilt every frame even at rest, a document smaller than the
+viewport that could not be zoomed back out ([#489](https://github.com/ScerIO/packages.flutter/issues/489)), and more. See the
 [CHANGELOG](CHANGELOG.md).
