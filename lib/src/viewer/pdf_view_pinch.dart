@@ -24,7 +24,7 @@ class PdfViewPinch extends StatefulWidget {
     this.padding = 10,
     this.minScale = 1.0,
     this.maxScale = 20.0,
-    this.doubleTapZoomScale = 2.5,
+    this.doubleTapZoomScale,
     this.backgroundDecoration = const BoxDecoration(
       color: Color.fromARGB(255, 250, 250, 250),
       boxShadow: [
@@ -48,7 +48,9 @@ class PdfViewPinch extends StatefulWidget {
   final double maxScale;
 
   /// When set, a double tap toggles between the original scale and this scale, zooming about the tapped position.
-  /// Pass null to disable the gesture.
+  /// The scale is clamped to [minScale]..[maxScale]. Null (the default) disables the gesture -- it is opt-in because a
+  /// double-tap recognizer holds the gesture arena for the double-tap timeout, delaying any single tap handled around
+  /// the viewer.
   final double? doubleTapZoomScale;
 
   /// Page management
@@ -205,7 +207,10 @@ class _PdfViewPinchState extends State<PdfViewPinch>
     }
     final current = _controller.value.clone();
     final currentScale = current.getMaxScaleOnAxis();
-    final targetScale = currentScale > 1.05 ? 1.0 / currentScale : scaleTo;
+    //Relative to the current transform; clamped here because a programmatic transform bypasses the
+    //`InteractiveViewer` limits -- otherwise `maxScale: 1.0` still zoomed on a double tap.
+    final absoluteScale = (currentScale > 1.05 ? 1.0 : scaleTo).clamp(_minScale, _maxScale);
+    final targetScale = absoluteScale / currentScale;
     final destination = (Matrix4.identity()
           ..translateByDouble(position.dx * (1 - targetScale), position.dy * (1 - targetScale), 0, 1)
           ..scaleByDouble(targetScale, targetScale, targetScale, 1))

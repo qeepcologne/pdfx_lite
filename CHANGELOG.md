@@ -1,3 +1,14 @@
+## Unreleased
+
+- **PdfViewPinch**: a document smaller than the viewport (a single-page receipt, a scan) is now centered, and pinching
+  back out reaches the original scale again. `InteractiveViewer` never lets a gesture shrink below
+  `viewport / child`, so with a child shorter than the viewport zooming out stuck above 1.0 (pdfx #489). Contributed
+  by Ruben Nuñez (#1).
+- **PdfViewPinch**: new `doubleTapZoomScale` -- a double tap toggles between the original scale and this one, zooming
+  about the tapped position, clamped to `minScale`..`maxScale`. Opt-in (default `null`): a double-tap recognizer holds
+  the gesture arena for the double-tap timeout, which would delay single taps handled around the viewer. Contributed
+  by Ruben Nuñez (#1).
+
 ## 3.10.1
 
 - **iOS**: Xcode floor raised to **27.0** (Swift 6.4 toolchain). `Package.swift` declares `swift-tools-version: 6.4`.
