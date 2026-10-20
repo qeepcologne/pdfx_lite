@@ -60,10 +60,9 @@ the draw has to stay serialised (the `Repository` lock covers the lookup, not th
   (verified via `example/lib/cyrillic_probe.dart` + `cyrillic_embedded.pdf`); only a PDF with a non-embedded `/Arial`
   reference drops it, and poppler drops that same file too. Renderer font-substitution, not fixable from the plugin —
   the reporter's PDF just needs its font embedded.
-- **PR #594 "Expose `InteractiveViewer` onInteraction-methods"** — a *feature* PR, not a bug: nothing is broken. It
-  adds three nullable callbacks that do nothing unless a caller passes them. Speculative public API for someone else's
-  use case; it stays a 15-line change if one ever turns up here. Add it when something needs it, not before.
-- **Upstreaming our fixes.** `ScerIO/packages.flutter` is dormant: no release since `pdfx` 2.9.2 (June 2025), no
-  commit to the repo since December 2025, ~200 open issues and PRs unmerged for over a year — including the two
-  partial patches for the NaN crash we fixed in 3.1.0. Patches sent there would sit. Our fixes are recorded in the
-  README and CHANGELOG instead, which is where anyone who lands on this fork will actually find them.
+- **Upstreaming our fixes.** `ScerIO/packages.flutter` released `pdfx` 2.10.0 and 2.11.0 in a single day
+  (2026-08-20) after 14 months without a release, and nothing has landed for `pdfx` since; none of the reports above
+  were touched. Nothing from those two releases was missing here except #594 (taken in 3.12.0): the NaN crash was
+  already fixed in 3.1.0, and SPM, AGP 9 and the `Matrix4` deprecations were covered too. Patches sent there would
+  sit. Our fixes are recorded in the README and CHANGELOG instead, which is where anyone who lands on this fork will
+  actually find them.

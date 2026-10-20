@@ -17,6 +17,9 @@ class PdfViewPinch extends StatefulWidget {
     this.onPageChanged,
     this.onDocumentLoaded,
     this.onDocumentError,
+    this.onInteractionStart,
+    this.onInteractionUpdate,
+    this.onInteractionEnd,
     this.builders = const PdfViewPinchBuilders<DefaultBuilderOptions>(
       options: DefaultBuilderOptions(),
     ),
@@ -73,6 +76,15 @@ class PdfViewPinch extends StatefulWidget {
 
   /// Pdf widget page background decoration
   final BoxDecoration backgroundDecoration;
+
+  /// Called when the user starts a pan or scale gesture on the widget.
+  final GestureScaleStartCallback? onInteractionStart;
+
+  /// Called when the user updates a pan or scale gesture on the widget.
+  final GestureScaleUpdateCallback? onInteractionUpdate;
+
+  /// Called when the user ends a pan or scale gesture on the widget.
+  final GestureScaleEndCallback? onInteractionEnd;
 
   /// Default page builder
   @override
@@ -715,6 +727,9 @@ class _PdfViewPinchState extends State<PdfViewPinch>
           maxScale: _maxScale,
           panEnabled: true,
           scaleEnabled: true,
+          onInteractionStart: widget.onInteractionStart,
+          onInteractionUpdate: widget.onInteractionUpdate,
+          onInteractionEnd: widget.onInteractionEnd,
           child: SafeArea(
             child: Stack(
               children: <Widget>[

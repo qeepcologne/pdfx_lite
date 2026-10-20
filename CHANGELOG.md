@@ -1,3 +1,11 @@
+## 3.12.0
+
+- **PdfViewPinch**: new `onInteractionStart` / `onInteractionUpdate` / `onInteractionEnd`, passed through to the
+  underlying `InteractiveViewer` (pdfx #594, released upstream in 2.10.0).
+- Dependencies: `kotlinx-coroutines-android` 1.11.0, `synchronized` ^3.5.0, `vector_math` ^2.4.3; bridge regenerated
+  with **pigeon 29.0.11** (header-only change).
+- Example app: **Gradle 9.8.2**, **AGP 9.4.1**, **Kotlin 2.4.21**.
+
 ## 3.11.0
 
 - **PdfViewPinch**: a document smaller than the viewport (a single-page receipt, a scan) is now centered, and pinching

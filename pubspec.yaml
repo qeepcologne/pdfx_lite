@@ -1,7 +1,7 @@
 name: pdfx_lite
 description: Minimal, legacy-free PDF rendering & viewing for Flutter (Android + iOS) — no CocoaPods, SPM-only, no web/desktop renderers. Replacement for pdfx.
 repository: https://github.com/qeepcologne/pdfx_lite
-version: 3.11.0
+version: 3.12.0
 
 environment:
   sdk: ^3.13.0
@@ -13,10 +13,10 @@ dependencies:
   #required only by Pigeon's generated bridge import (`show immutable, protected, visibleForTesting`); the symbols
   #are unused but `dart pub publish` still enforces the referenced-package rule, so it must stay declared.
   meta: ^1.19.0
-  synchronized: ^3.4.2
+  synchronized: ^3.5.0
   #`vector_math_64` (Quad/Vector3/Matrix4) for the pinch viewer's transform maths. Flutter pins this to 2.2.0.
   #2.2.0 is the floor, not a preference: `translateByDouble`/`scaleByDouble` do not exist before it.
-  vector_math: ^2.4.2
+  vector_math: ^2.4.3
 
 dev_dependencies:
   flutter_test:
@@ -24,7 +24,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   #Codegen only — dev deps are not resolved transitively, so nothing here reaches consumers of the package.
   #Regenerate the bridge with: dart run pigeon --input pigeons/messages.dart
-  pigeon: ^29.0.2
+  pigeon: ^29.0.11
 
 flutter:
   plugin:

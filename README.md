@@ -13,7 +13,7 @@ Same 2 APIs as upstream, both slightly reduced (see *Migrating from pdfx*):
 
 ```yaml
 dependencies:
-  pdfx_lite: ^3.11.0
+  pdfx_lite: ^3.12.0
 ```
 
 ```dart
@@ -83,7 +83,7 @@ Otherwise catch:
 | Generated native bridge | 1479 lines of Java + a hand-translated `Messages.swift` | generated from one schema, no Java |
 | **Android** | | |
 | minSdk / compileSdk | 16 / 35 | 24 / 37 |
-| Gradle | 8.10.2 | 9.7.0 |
+| Gradle | 8.10.2 | 9.8.2 |
 | AGP | Groovy `build.gradle`, AGP 8.5.2 + `kotlin-android` | **9 only**, Kotlin DSL |
 | **iOS** | | |
 | Integration | CocoaPods podspec + SPM | **SPM only** |

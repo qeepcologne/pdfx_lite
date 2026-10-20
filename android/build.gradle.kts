@@ -35,5 +35,5 @@ dependencies {
     //compiles either way -- with core alone it fails at *runtime* ("Module with the Main dispatcher had failed to
     //initialize"). It only worked because Flutter's embedding happens to pull `-android` in transitively via
     //androidx.lifecycle; that is Flutter's business to change, not a contract with us. `-android` depends on `-core`.
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 }
