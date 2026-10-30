@@ -1,0 +1,32 @@
+# A .pubignore replaces .gitignore for pub in this directory, so the root .gitignore is repeated here.
+# example/.gitignore still applies on its own.
+# Dart/Flutter
+.dart_tool/
+build/
+.flutter-plugins-dependencies
+# A library, not an app: the lockfile is the consumer's business, not ours.
+pubspec.lock
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# iOS -- the plugin ships as a Swift package (ios/pdfx_lite/), so there is no Xcode
+# project, no CocoaPods, and none of the Flutter-generated ios/ app scaffolding a
+# non-SPM plugin would have. These are what SPM leaves behind instead.
+.build/
+.swiftpm/
+**/DerivedData/
+
+# Android
+android/.gradle/
+android/local.properties
+android/captures/
+
+# macOS
+.DS_Store
+
+# Upstream triage notes, not part of the package
+/TODO.md

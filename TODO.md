@@ -18,13 +18,15 @@ before fixing** — several may already be dead, or may not be ours to fix.
 
 Bigger than it looks. Neither side draws annotations today, and the fixes are unrelated:
 
-- **Android** — `Page.kt:25` and `Messages.kt:325` hardcode `RENDER_MODE_FOR_DISPLAY`, which skips annotations.
+- **Android** — `Page.kt` `renderToByteArray` (`RENDER_MODE_FOR_DISPLAY`, or `RENDER_MODE_FOR_PRINT` when `forPrint`)
+  and `Messages.kt` `onDocumentOrSurfaceChanged` (hardcoded `RENDER_MODE_FOR_DISPLAY`) skip annotations in either mode.
   Android 15 added `RenderParams` with `FLAG_RENDER_HIGHLIGHT_ANNOTATIONS` / `FLAG_RENDER_TEXT_ANNOTATIONS` — so this
   half is gated on **API 35**, and would simply not render annotations below it.
-- **iOS** — we draw with Core Graphics (`context.drawPDFPage`, `Document.swift:100` and `SwiftPdfxPlugin.swift:358`),
-  which renders the page content stream only; annotations are separate PDF objects and are skipped. Rendering them
-  means moving to **PDFKit** (`PDFPage.draw(with:to:)`) — available since iOS 11, so on every version we support, but
-  it is a **renderer rewrite** touching both the image path and the texture path, not a flag.
+- **iOS** — we draw with Core Graphics (`context.drawPDFPage`, in `Document.swift` `Page.render` and
+  `SwiftPdfxPlugin.swift` `PdfPageTexture.updateTex`), which renders the page content stream only; annotations are
+  separate PDF objects and are skipped. Rendering them means moving to **PDFKit** (`PDFPage.draw(with:to:)`) —
+  available since iOS 11, so on every version we support, but it is a **renderer rewrite** touching both the image
+  path and the texture path, not a flag.
 
 So: Android is blocked on Android 15, iOS is a rewrite. Do neither speculatively.
 

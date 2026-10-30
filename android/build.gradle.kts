@@ -3,7 +3,7 @@ plugins {
 }
 
 //Single source for both compile tasks: javac defaults to 11, Kotlin follows the JDK toolchain, and AGP 9 fails the
-//build unless the two share one target. 17 matches Flutter 3.44's own Gradle templates; raise it with the Flutter floor.
+//build unless the two share one target. 17 matches Flutter 3.47's own Gradle templates; raise it with the Flutter floor.
 val javaVersion = JavaVersion.VERSION_17
 
 //AGP 9 only, so no `kotlin-android` plugin and no compat guard. Kotlin still compiles whether or not the host sets

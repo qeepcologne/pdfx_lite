@@ -34,6 +34,9 @@ single taps handled around the viewer by the double-tap timeout (~300 ms).
 PdfViewPinch(controller: controller, doubleTapZoomScale: 2.5);
 ```
 
+`onInteractionStart` / `onInteractionUpdate` / `onInteractionEnd` are passed through to the underlying
+`InteractiveViewer`.
+
 ## Migrating from pdfx
 
 1. Replace the dependency, and `package:pdfx/pdfx.dart` → `package:pdfx_lite/pdfx_lite.dart`.
@@ -83,7 +86,6 @@ Otherwise catch:
 | Generated native bridge | 1479 lines of Java + a hand-translated `Messages.swift` | generated from one schema, no Java |
 | **Android** | | |
 | minSdk / compileSdk | 16 / 35 | 24 / 37 |
-| Gradle | 8.10.2 | 9.8.2 |
 | AGP | Groovy `build.gradle`, AGP 8.5.2 + `kotlin-android` | **9 only**, Kotlin DSL |
 | **iOS** | | |
 | Integration | CocoaPods podspec + SPM | **SPM only** |

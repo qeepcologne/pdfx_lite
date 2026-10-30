@@ -16,7 +16,7 @@ enum PdfPageImageFormat {
   /// not a runtime failure:
   ///
   /// ```dart
-  /// format: Platform.isIOS ? PdfPageImageFormat.png : PdfPageImageFormat.webp,
+  /// format: defaultTargetPlatform == TargetPlatform.iOS ? PdfPageImageFormat.png : PdfPageImageFormat.webp,
   /// ```
   webp(2);
 

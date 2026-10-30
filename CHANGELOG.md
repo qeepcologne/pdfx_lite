@@ -33,6 +33,8 @@
 
 - Did not compile on iOS — see 3.10.1. Never install this version.
 
+Original notes, superseded by 3.10.1:
+
 - **iOS**: Xcode floor raised to **27.0** (Swift 6.4 toolchain). `Package.swift` declares `swift-tools-version: 6.4`.
   Runtime floor unchanged — still **iOS 15+**, which is also Xcode 27's own minimum deployment target.
 - Bridge regenerated with **pigeon 29** (was 27). pigeon 28 changed `@async` host methods to generate `suspend`
@@ -319,8 +321,8 @@ Breaking in a minor again, same reasoning as 3.2.0 — the fork has essentially 
   constructor's `throws` clause and easy to miss. Nothing caught it, so it fell through to the catch-all and surfaced
   as `PlatformException(code: pdf_renderer, message: "Unknown error")`, indistinguishable from any other failure.
   Both platforms now report the shared code `PDF_PASSWORD_PROTECTED`, which the Dart side turns into a typed,
-  catchable exception. This is *detection*, not support — the plugin still cannot open an encrypted PDF (see
-  `TODO.md` §2) — but a caller can now tell the user why instead of showing "unknown error".
+  catchable exception. This is *detection*, not support — the plugin still cannot open an encrypted PDF — but a caller
+  can now tell the user why instead of showing "unknown error".
 
   Unlike the WebP case above, this one is a true `Exception` rather than an `Error`: whether a PDF is encrypted is a
   property of the data, unknowable until it is read, so it cannot be avoided up front and catching it is correct.

@@ -195,9 +195,9 @@ class PdfPasswordProtectedException implements Exception {
 /// re-prompt forever. A silently-ignored `password` is precisely the bug that had the parameter removed in 3.0.0.
 ///
 /// It is an `Exception`, not an `Error`, because it depends on the device rather than on the code: a caller cannot
-/// rule it out at compile time the way `Platform.isIOS` rules out WebP. Either catch it, or call
-/// [PdfDocument.isPasswordSupported] up front and offer a fallback (an external viewer, say) instead of a password
-/// prompt that cannot lead anywhere.
+/// rule it out at compile time the way `defaultTargetPlatform == TargetPlatform.iOS` rules out WebP. Either catch it,
+/// or call [PdfDocument.isPasswordSupported] up front and offer a fallback (an external viewer, say) instead of a
+/// password prompt that cannot lead anywhere.
 class PdfPasswordUnsupportedException implements Exception {
   PdfPasswordUnsupportedException(this.sourceName);
 
