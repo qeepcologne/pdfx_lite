@@ -1,6 +1,6 @@
 // Ground truth for how each platform reports a rotated page.
 //   flutter build apk --debug -t lib/rotation_probe.dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfx_lite/pdfx_lite.dart';
 
 Future<void> main() async {

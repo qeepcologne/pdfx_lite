@@ -3,7 +3,7 @@
 //   noembed   -> bare /Arial reference; renderer must substitute (poppler itself drops it).
 //   flutter build apk --debug -t lib/cyrillic_probe.dart
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfx_lite/pdfx_lite.dart';
 
 Future<Uint8List?> _render(String asset) async {

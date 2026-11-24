@@ -5,7 +5,7 @@
 //   adb -s <device> install -r -d build/app/outputs/flutter-apk/app-debug.apk
 //   adb -s <device> shell am start -n io.scer.pdfx_lite_example/.MainActivity
 //   adb -s <device> logcat -d | grep PROBE
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfx_lite/pdfx_lite.dart';
 
 final _lines = ValueNotifier<List<String>>([]);

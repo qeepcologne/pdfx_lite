@@ -1,6 +1,7 @@
 ## 3.12.1
 
 - Bridge regenerated with **pigeon 30.0.4** (was 29.0.11); the generated code differs only in formatting.
+- Example app: `material_ui` instead of the deprecated `package:flutter/material.dart`.
 
 ## 3.12.0
 
