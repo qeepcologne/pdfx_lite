@@ -1,3 +1,7 @@
+## 3.12.1
+
+- Bridge regenerated with **pigeon 30.0.4** (was 29.0.11); the generated code differs only in formatting.
+
 ## 3.12.0
 
 - **PdfViewPinch**: new `onInteractionStart` / `onInteractionUpdate` / `onInteractionEnd`, passed through to the
