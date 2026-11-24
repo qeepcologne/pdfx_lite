@@ -17,8 +17,8 @@ Future<Uint8List?> _render(String asset) async {
       backgroundColor: '#FFFFFF',
     );
     await doc.close();
-    debugPrint('CYR | $asset ${p.width}x${p.height} -> ${img?.bytes.length} bytes');
-    return img?.bytes;
+    debugPrint('CYR | $asset ${p.width}x${p.height} -> ${img.bytes.length} bytes');
+    return img.bytes;
   } catch (e) {
     debugPrint('CYR | $asset THREW $e');
     return null;
